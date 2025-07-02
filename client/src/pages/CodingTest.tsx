@@ -1,0 +1,1926 @@
+import { useState, useEffect, useRef, MouseEvent } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { toast } from 'react-hot-toast'
+import { 
+  ArrowLeft, 
+  Clock, 
+  Award, 
+  Play, 
+  Square,
+  Code,
+  RefreshCw,
+  AlertCircle,
+  Loader2,
+  Save
+} from 'lucide-react'
+
+import CodeEditor from '../components/CodeEditor'
+import CameraPreview from '../components/CameraPreview'
+import CodingTestGuidelinesOverlay from '../components/CodingTestGuidelinesOverlay'
+import ProgressBar from '../components/ProgressBar'
+import { useInterviewStore } from '../stores/interviewStore'
+import * as codingTestService from '../services/codingTestService'
+import * as sessionService from '../services/sessionService'
+
+interface CodeExecution {
+  success: boolean
+  output: string
+  error?: string
+  executionTime?: number
+  memoryUsage?: number
+  input?: string
+  expectedOutput?: string
+}
+
+interface CodingChallenge {
+  id: number
+  title: string
+  description: string
+  difficulty: 'Easy' | 'Medium' | 'Hard'
+  techStack: string
+  starterCode: string
+  testCases: Array<{
+    input: any
+    expectedOutput: any
+    description: string
+  }>
+  hints?: string[]
+  timeLimit?: number
+  tags?: string[]
+  examples?: Array<{
+    input: string
+    output: string
+    explanation?: string
+  }>
+}
+
+export default function CodingTest() {
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const selectedTechStack = searchParams.get('techStack') || 'JavaScript'
+  const selectedLevel = searchParams.get('level') || 'Basic'
+  
+  // Map level to difficulty format for API
+  const getDifficulty = (level: string): 'Easy' | 'Medium' | 'Hard' => {
+    switch (level) {
+      case 'Basic': return 'Easy'
+      case 'Intermediate': return 'Medium'
+      case 'Pro': return 'Hard'
+      default: return 'Easy'
+    }
+  }
+  
+  const selectedDifficulty = getDifficulty(selectedLevel)
+  
+  const { saveResponse } = useInterviewStore()
+  
+  // Draggable camera state
+  const [cameraPosition, setCameraPosition] = useState({ x: 20, y: 20 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [isCameraMinimized, setIsCameraMinimized] = useState(false)
+  const cameraRef = useRef<HTMLDivElement>(null)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+
+  // Mouse event handlers for camera dragging
+  const handleMouseDown = (e: MouseEvent) => {
+    if (!cameraRef.current) return
+    
+    const rect = cameraRef.current.getBoundingClientRect()
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    })
+    setIsDragging(true)
+  }
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return
+    
+    const x = Math.max(0, Math.min(window.innerWidth - 224, e.clientX - dragOffset.x))
+    const y = Math.max(0, Math.min(window.innerHeight - 160, e.clientY - dragOffset.y))
+    
+    setCameraPosition({ x, y })
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  // Add and remove event listeners for mouse movement
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove as any)
+      window.addEventListener('mouseup', handleMouseUp)
+    }
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove as any)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging])
+
+  const [currentChallenge, setCurrentChallenge] = useState<CodingChallenge | null>(null)
+  const [isLoadingChallenge, setIsLoadingChallenge] = useState(true)
+  const [loadingError, setLoadingError] = useState<string | null>(null)
+  const [code, setCode] = useState('')
+  const [language, setLanguage] = useState('javascript')
+  const [isTestActive, setIsTestActive] = useState(false)
+  const [testResults, setTestResults] = useState<CodeExecution[]>([])
+  const [timeRemaining, setTimeRemaining] = useState(30 * 60)
+  const [testStartTime, setTestStartTime] = useState<Date | null>(null)
+  const [showAnalysis, setShowAnalysis] = useState(false)
+  const [analysisData, setAnalysisData] = useState<any>(null)
+  const [showGuidelinesOverlay, setShowGuidelinesOverlay] = useState(true)
+  const [testCompleted, setTestCompleted] = useState(false) // Track if test is completed
+  const [sessionId, setSessionId] = useState<string | null>(null) // Database session ID
+  const [isTestResultsCollapsed, setIsTestResultsCollapsed] = useState(false) // Collapse test results
+  
+  // Countdown timer states
+  const [showCountdown, setShowCountdown] = useState(false)
+  const [countdownValue, setCountdownValue] = useState(3)
+  const [testReady, setTestReady] = useState(false)
+  
+  // Check for duplicate test access on mount
+  useEffect(() => {
+    // Remove the restrictive completion check to allow retaking tests
+    // Users should be able to practice coding tests multiple times
+    
+    // Only check for active session in another tab to prevent conflicts
+    const sessionKey = `coding-test-active-${selectedTechStack}-${selectedLevel}`
+    const existingSession = localStorage.getItem(sessionKey)
+    
+    if (existingSession) {
+      // Check if the session is recent (within last hour) to avoid blocking stale sessions
+      try {
+        const sessionData = JSON.parse(existingSession)
+        const sessionTime = new Date(sessionData.timestamp || sessionData)
+        const hourAgo = new Date(Date.now() - 60 * 60 * 1000)
+        
+        if (sessionTime > hourAgo) {
+          toast.error('A coding test is already in progress in another tab.')
+          setTimeout(() => navigate('/'), 2000)
+          return
+        } else {
+          // Clear stale session
+          localStorage.removeItem(sessionKey)
+        }
+      } catch (e) {
+        // If we can't parse the session data, remove it
+        localStorage.removeItem(sessionKey)
+      }
+    }
+    
+    // Mark this test session as started with timestamp
+    localStorage.setItem(sessionKey, JSON.stringify({
+      timestamp: new Date().toISOString(),
+      techStack: selectedTechStack,
+      level: selectedLevel
+    }))
+    
+    // Clean up on unmount
+    return () => {
+      localStorage.removeItem(sessionKey)
+    }
+  }, [selectedTechStack, selectedLevel, navigate])
+  
+  // Handle automatic navigation when analysis is closed after test completion
+  useEffect(() => {
+    if (testCompleted && !showAnalysis && analysisData) {
+      // Only navigate after the analysis modal has been explicitly closed by the user
+      console.log('🏠 Test completed and analysis closed - ready for navigation')
+      // Don't auto-navigate here - let user choose via buttons in the modal
+    }
+  }, [testCompleted, showAnalysis, analysisData, navigate])
+
+  // Auto-proceed after 10 seconds if guidelines overlay is still showing
+  useEffect(() => {
+    if (showGuidelinesOverlay) {
+      const timeout = setTimeout(() => {
+        console.log('Auto-proceeding after 10 seconds')
+        setShowGuidelinesOverlay(false)
+      }, 10000) // 10 seconds
+      
+      return () => clearTimeout(timeout)
+    }
+  }, [showGuidelinesOverlay])
+
+  // Timer countdown
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (isTestActive && timeRemaining > 0) {
+      interval = setInterval(() => {
+        setTimeRemaining(prev => {
+          if (prev <= 1) {
+            endTest()
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [isTestActive, timeRemaining])
+
+  const endTest = async () => {
+    console.log('🔚 endTest() called')
+    
+    // Immediately stop the test and camera
+    setIsTestActive(false)
+    setTestReady(false) // Prevent showing "test ready" screen
+    
+    // Force immediate camera stop by stopping all media devices
+    console.log('🛑 Forcing immediate camera stop after test end')
+    await cleanupCamera()
+    
+    // Mark test as completed and prevent any re-access
+    setTestCompleted(true)
+    
+    // Clear session data to prevent re-entry
+    localStorage.removeItem('coding-session-id')
+    localStorage.removeItem('coding-test-active')
+    
+    // Calculate real analysis data based on actual execution results
+    if (testStartTime && currentChallenge) {
+      const duration = new Date().getTime() - testStartTime.getTime()
+      const durationMinutes = Math.floor(duration / 60000)
+      const durationSeconds = Math.floor((duration % 60000) / 1000)
+      const durationString = `${durationMinutes}m ${durationSeconds}s`        // Use actual test results if we have them, otherwise run the tests one final time
+        let finalTestResults = testResults
+        if (testResults.length === 0 && code.trim()) {
+          try {
+            console.log('📊 Running final code analysis for test completion...')
+            const data = await codingTestService.executeCode(code, language, currentChallenge.testCases)
+            if (data.results && Array.isArray(data.results)) {
+              finalTestResults = data.results.map((result: any, index: number) => ({
+                success: result.success || false,
+                output: result.output || '',
+                error: result.error || null,
+                executionTime: result.executionTime || 0,
+                memoryUsage: result.memoryUsage || 0,
+                input: currentChallenge.testCases[index]?.input || '',
+                expectedOutput: currentChallenge.testCases[index]?.expectedOutput || ''
+              }))
+              setTestResults(finalTestResults)
+            }
+          } catch (error) {
+            console.warn('Final execution failed:', error)
+          }
+        }
+      
+      const passedTests = finalTestResults.filter(r => r.success).length
+      const totalTests = currentChallenge.testCases.length
+      const passRate = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0
+      
+      // Calculate detailed metrics based on actual execution results
+      const avgExecutionTime = finalTestResults.length > 0 
+        ? finalTestResults.reduce((sum, r) => sum + (r.executionTime || 0), 0) / finalTestResults.length 
+        : 0
+      const maxMemoryUsage = finalTestResults.length > 0
+        ? Math.max(...finalTestResults.map(r => r.memoryUsage || 0))
+        : 0
+      const hasErrors = finalTestResults.some(r => r.error)
+      
+      // Performance analysis
+      const timeLimit = (currentChallenge.timeLimit || 30) * 60 * 1000 // Convert to milliseconds
+      const timeUsed = duration
+      const timeEfficiencyPercentage = Math.max(0, 100 - ((timeUsed / timeLimit) * 100))
+      
+      // Code quality analysis
+      const codeLength = code.length
+      const hasComments = code.includes('//') || code.includes('/*') || code.includes('#')
+      const hasProperStructure = code.includes('function') || code.includes('def') || code.includes('class') || code.includes('public')
+      const hasControlFlow = code.includes('if') || code.includes('for') || code.includes('while') || code.includes('switch')
+      const hasErrorHandling = code.includes('try') || code.includes('catch') || code.includes('except')
+      
+      // Calculate component scores
+      const testScore = passRate // 0-100
+      const timeScore = Math.min(100, timeEfficiencyPercentage + 20) // Bonus for early completion
+      
+      let codeQualityScore = 30 // Base score
+      if (codeLength > 50) codeQualityScore += 15
+      if (hasComments) codeQualityScore += 15
+      if (hasProperStructure) codeQualityScore += 20
+      if (hasControlFlow) codeQualityScore += 10
+      if (hasErrorHandling) codeQualityScore += 10
+      codeQualityScore = Math.min(100, codeQualityScore)
+      
+      const performanceScore = avgExecutionTime < 1000 ? 90 : avgExecutionTime < 5000 ? 70 : 50
+      
+      // Overall score calculation
+      const overallScore = Math.round(
+        (testScore * 0.5) +           // 50% weight on test results
+        (codeQualityScore * 0.25) +   // 25% weight on code quality  
+        (timeScore * 0.15) +          // 15% weight on time efficiency
+        (performanceScore * 0.1)      // 10% weight on execution performance
+      )
+      
+      // Generate detailed feedback based on actual results
+      const strengths = []
+      const improvements = []
+      
+      if (passRate >= 80) strengths.push("Excellent test case completion rate")
+      else if (passRate >= 60) strengths.push("Good progress on test cases")
+      else if (passRate > 0) improvements.push("Work on passing more test cases")
+      else improvements.push("Focus on basic problem-solving approach")
+      
+      if (timeEfficiencyPercentage > 70) strengths.push("Efficient time management")
+      else if (timeEfficiencyPercentage > 40) strengths.push("Reasonable time usage")
+      else improvements.push("Practice working under time constraints")
+      
+      if (hasComments) strengths.push("Good code documentation")
+      else improvements.push("Add comments to explain your logic")
+      
+      if (hasProperStructure) strengths.push("Well-structured code organization")
+      else improvements.push("Focus on proper code structure and organization")
+      
+      if (!hasErrors && finalTestResults.length > 0) strengths.push("Clean code execution without errors")
+      else if (hasErrors) improvements.push("Debug and fix code errors")
+      
+      if (avgExecutionTime < 1000) strengths.push("Efficient algorithm implementation")
+      else if (avgExecutionTime > 5000) improvements.push("Optimize algorithm for better performance")
+      
+      // Difficulty-specific feedback
+      let difficultyFeedback = ""
+      if (currentChallenge.difficulty === 'Easy') {
+        difficultyFeedback = passRate >= 80 
+          ? "Great job on this fundamental problem! Ready for intermediate challenges."
+          : "Keep practicing basic programming concepts and problem-solving patterns."
+      } else if (currentChallenge.difficulty === 'Medium') {
+        difficultyFeedback = passRate >= 70
+          ? "Solid performance on this intermediate challenge! Shows good algorithmic thinking."
+          : "This level requires more practice with data structures and algorithms."
+      } else {
+        difficultyFeedback = passRate >= 60
+          ? "Impressive work on this advanced problem! Shows strong technical skills."
+          : "Advanced problems require deep understanding of complex algorithms and optimization."
+      }
+      
+      const analysis = {
+        // Core metrics - wrap numbers in objects if needed by backend
+        overallScore,
+        technicalAccuracy: testScore,
+        codeQuality: codeQualityScore,
+        timeManagement: Math.round(timeScore),
+        problemSolvingApproach: Math.round((testScore + codeQualityScore) / 2),
+        
+        // Test results
+        passedTests,
+        totalTests,
+        passRate,
+        testResults: finalTestResults,
+        
+        // Performance metrics
+        duration: durationString,
+        timeUsed: Math.round(timeUsed / 1000), // in seconds
+        timeLimit: Math.round(timeLimit / 1000), // in seconds
+        timeEfficiency: Math.round(timeEfficiencyPercentage),
+        avgExecutionTime: Math.round(avgExecutionTime),
+        maxMemoryUsage,
+        
+        // Code analysis
+        codeLength,
+        hasComments,
+        hasProperStructure,
+        hasControlFlow,
+        hasErrorHandling,
+        hasErrors,
+        
+        // Challenge info
+        challenge: currentChallenge.title,
+        difficulty: currentChallenge.difficulty,
+        techStack: currentChallenge.techStack || selectedTechStack,
+        
+        // Feedback
+        strengths,
+        improvements,
+        overallFeedback: `You completed ${passedTests}/${totalTests} test cases in ${durationString}. ${difficultyFeedback}`,
+        detailedFeedback: `Performance Summary:\n• Code Quality: ${codeQualityScore}/100\n• Test Success: ${passRate}%\n• Time Efficiency: ${Math.round(timeEfficiencyPercentage)}%\n• Avg Execution: ${Math.round(avgExecutionTime)}ms\n\nThis ${currentChallenge.difficulty} level ${selectedTechStack} challenge tested your ${selectedTechStack === 'Generic' ? 'algorithmic thinking' : selectedTechStack + ' programming'} skills.`
+      }
+      
+      setAnalysisData(analysis)
+      
+      // Mark test as completed
+      setTestCompleted(true)
+      
+      console.log('📊 Analysis data created:', analysis)
+      
+      // Save the comprehensive results
+      const response = JSON.stringify({
+        code,
+        duration,
+        testResults: finalTestResults,
+        analysis,
+        challenge: currentChallenge.title,
+        timestamp: new Date().toISOString()
+      })
+      saveResponse(`coding-test-${currentChallenge.id}`, response)
+      
+      // Trigger dashboard refresh by setting a flag in localStorage
+      localStorage.setItem('dashboard-refresh-needed', 'true')
+      
+      // End database session
+      if (sessionId) {
+        try {
+          await sessionService.endSession(sessionId, overallScore, analysis)
+          console.log('✅ Database session ended successfully')
+        } catch (error) {
+          console.warn('⚠️ Failed to end database session:', error)
+        }
+      }
+      
+      // Update session with challenge and final analysis
+      if (sessionId) {
+        try {
+          // Format the analysis data for database storage
+          const formattedAnalysis = {
+            codeQuality: {
+              overall: codeQualityScore,
+              readability: hasComments ? 80 : 60,
+              efficiency: performanceScore,
+              bestPractices: hasProperStructure ? 85 : 50
+            },
+            performance: {
+              timeComplexity: avgExecutionTime < 1000 ? 'O(n)' : 'O(n²)',
+              spaceComplexity: 'O(1)',
+              optimality: performanceScore
+            },
+            testResults: finalTestResults.map(result => ({
+              input: String(result.input || ''),
+              expected: String(result.expectedOutput || ''),
+              actual: String(result.output || ''),
+              passed: result.success,
+              executionTime: result.executionTime || 0,
+              memoryUsage: result.memoryUsage || 0
+            })),
+            feedback: {
+              strengths: strengths,
+              improvements: improvements,
+              suggestions: [
+                difficultyFeedback,
+                `You completed ${passedTests}/${totalTests} test cases in ${durationString}.`
+              ]
+            },
+            breakdown: {
+              correctness: testScore,
+              efficiency: performanceScore,
+              codeQuality: codeQualityScore,
+              problemSolving: Math.round((testScore + codeQualityScore) / 2)
+            }
+          }
+          
+          await sessionService.updateSession(sessionId, {
+            challenge: currentChallenge,
+            response: JSON.stringify({ code, testResults: finalTestResults }),
+            evaluation: { 
+              score: overallScore, 
+              analysis: formattedAnalysis  // Send simplified analysis
+            }
+          })
+        } catch (error) {
+          console.warn('⚠️ Failed to update session with final data:', error)
+        }
+      }
+      
+      // Show analysis immediately after data is prepared
+      console.log('🔍 Showing analysis modal with data:', {
+        overallScore,
+        passedTests,
+        totalTests,
+        duration: durationString,
+        hasTestResults: finalTestResults.length > 0,
+        hasValidChallenge: !!currentChallenge,
+        analysisData: analysis,
+        showAnalysisState: showAnalysis,
+        testCompleted
+      })
+      setShowAnalysis(true)
+      
+      // Force a re-render to ensure the modal appears
+      setTimeout(() => {
+        if (!showAnalysis) {
+          console.log('🔧 Force setting showAnalysis to true again')
+          setShowAnalysis(true)
+        }
+      }, 100)
+      
+      console.log('🔍 Analysis modal state set - showAnalysis should be true now')
+      console.log('🔍 Analysis data structure:', JSON.stringify(analysis, null, 2))
+      
+      // Store test completion data for analytics but allow retaking
+      const testKey = `coding-test-history-${selectedTechStack}-${selectedLevel}`
+      const existingHistory = localStorage.getItem(testKey)
+      let history = []
+      
+      try {
+        history = existingHistory ? JSON.parse(existingHistory) : []
+      } catch (e) {
+        history = []
+      }
+      
+      // Add this test result to history
+      history.push({
+        completed: true,
+        timestamp: new Date().toISOString(),
+        score: overallScore,
+        duration: durationString,
+        testResults: finalTestResults.length
+      })
+      
+      // Keep only last 10 attempts to prevent localStorage bloat
+      if (history.length > 10) {
+        history = history.slice(-10)
+      }
+      
+      localStorage.setItem(testKey, JSON.stringify(history))
+      
+      // Remove active session marker
+      const sessionKey = `coding-test-active-${selectedTechStack}-${selectedLevel}`
+      localStorage.removeItem(sessionKey)
+    } else {
+      // If no valid challenge or start time, create minimal analysis
+      const minimumAnalysis = {
+        overallScore: 0,
+        technicalAccuracy: 0,
+        codeQuality: 0,
+        timeManagement: 0,
+        problemSolvingApproach: 0,
+        passedTests: 0,
+        totalTests: 0,
+        passRate: 0,
+        testResults: [],
+        duration: '0m 0s',
+        timeUsed: 0,
+        timeLimit: 1800,
+        timeEfficiency: 0,
+        avgExecutionTime: 0,
+        maxMemoryUsage: 0,
+        codeLength: code.length,
+        hasComments: false,
+        hasProperStructure: false,
+        hasControlFlow: false,
+        hasErrorHandling: false,
+        hasErrors: false,
+        challenge: 'Test Incomplete',
+        difficulty: selectedDifficulty,
+        techStack: selectedTechStack,
+        strengths: [],
+        improvements: ['Complete the coding test to get detailed feedback'],
+        overallFeedback: 'Test was ended before completion.',
+        detailedFeedback: 'The test was ended early. To get detailed analysis, complete the full coding challenge.'
+      }
+      
+      setAnalysisData(minimumAnalysis)
+      setTestCompleted(true)
+      setShowAnalysis(true)
+    }
+    
+    toast.success('Coding test completed! Camera monitoring ended.')
+  }
+
+  const handleEndTest = () => {
+    console.log('🔚 handleEndTest called - current state:', {
+      isTestActive,
+      testStartTime,
+      currentChallenge: currentChallenge?.title,
+      codeLength: code.length,
+      testResultsLength: testResults.length
+    })
+    endTest()
+  }
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
+
+  // Calculate progress based on test completion
+  const calculateProgress = () => {
+    if (!currentChallenge) return 0
+    const totalTime = (currentChallenge.timeLimit || 30) * 60
+    const timeElapsed = totalTime - timeRemaining
+    const timeProgress = Math.min((timeElapsed / totalTime) * 50, 50) // 50% for time
+    
+    const testProgress = testResults.length > 0 
+      ? (testResults.filter(r => r.success).length / testResults.length) * 50 
+      : 0 // 50% for test success
+    
+    return Math.min(Math.round(timeProgress + testProgress), 100)
+  }
+
+  const passedTests = testResults.filter(r => r.success).length
+  const totalTests = testResults.length
+
+  // Fetch coding challenge from API
+  const fetchCodingChallenge = async () => {
+    setIsLoadingChallenge(true)
+    setLoadingError(null)
+    try {
+      const challenge = await codingTestService.generateChallenge(selectedTechStack, selectedDifficulty)
+      setCurrentChallenge(challenge)
+      setCode(challenge.starterCode)
+      const langMap: Record<string, string> = {
+        'JavaScript': 'javascript',
+        'Python': 'python',
+        'Java': 'java',
+        'Node.js': 'javascript',
+      }
+      setLanguage(langMap[selectedTechStack] || 'javascript')
+      setIsLoadingChallenge(false) // Stop loading only on success
+      
+      // Start countdown after challenge is loaded
+      setTimeout(() => {
+        setShowCountdown(true)
+        startCountdownSequence()
+      }, 500)
+    } catch (err) {
+      setLoadingError(err instanceof Error ? err.message : 'Failed to load challenge')
+      // On error, isLoadingChallenge remains true to show the error message
+    }
+  };
+
+  // Load challenge only after guidelines are dismissed
+  useEffect(() => {
+    if (!showGuidelinesOverlay) {
+      fetchCodingChallenge()
+    }
+  }, [selectedTechStack, selectedDifficulty, showGuidelinesOverlay])
+
+  // Initialize code with starter code and start test when ready
+  useEffect(() => {
+    if (currentChallenge && !isTestActive) {
+      // Set language based on tech stack - lock language for non-Generic stacks
+      let initialLanguage = language
+      
+      if (selectedTechStack === 'Generic') {
+        // For Generic tech stack, default to JavaScript but allow user to change
+        initialLanguage = 'javascript'
+        setLanguage('javascript')
+      } else {
+        // For specific tech stacks, lock to their language
+        const langMap: Record<string, string> = {
+          'JavaScript': 'javascript',
+          'Python': 'python',
+          'Java': 'java',
+          'C++': 'cpp',
+          'Go': 'go'
+        }
+        initialLanguage = langMap[selectedTechStack] || 'javascript'
+        setLanguage(initialLanguage)
+      }
+      
+      // Generate proper boilerplate code for the language and challenge
+      const boilerplate = currentChallenge.starterCode // Assuming starterCode is already good
+      setCode(boilerplate)
+      
+      // Auto-start the test immediately after challenge is loaded
+      setTimeout(async () => {
+        try {
+          // Start database session
+          const newSessionId = await sessionService.startSession('coding', selectedTechStack, selectedLevel)
+          setSessionId(newSessionId)
+          console.log('✅ Database session started:', newSessionId)
+        } catch (error) {
+          console.warn('⚠️ Failed to start database session:', error)
+          // Continue without database session
+        }
+        
+        setIsTestActive(true)
+        setTestStartTime(new Date())
+        setTimeRemaining((currentChallenge.timeLimit || 30) * 60)
+        toast.success('Challenge loaded! Test started automatically.')
+      }, 1000)
+    }
+  }, [currentChallenge, isTestActive, language, selectedTechStack])
+
+  // Handle language change for Generic tech stack
+  const handleLanguageChange = (newLanguage: string) => {
+    if (selectedTechStack === 'Generic' && isTestActive) {
+      setLanguage(newLanguage)
+      
+      // Update boilerplate code for the new language
+      const languageStarters: Record<string, string> = {
+        javascript: `function solution() {
+    // Your code here
+    return null;
+}
+
+// Test your solution
+console.log(solution());`,
+        python: `def solution():
+    # Your code here
+    pass
+
+# Test your solution
+print(solution())`,
+        java: `public class Solution {
+    public static void main(String[] args) {
+        // Test your solution
+        Solution sol = new Solution();
+        System.out.println(sol.solution());
+    }
+    
+    public Object solution() {
+        // Your code here
+        return null;
+    }
+}`,
+        cpp: `#include <iostream>
+using namespace std;
+
+class Solution {
+public:
+    // Your code here
+    void solution() {
+        
+    }
+};
+
+int main() {
+    Solution sol;
+    sol.solution();
+    return 0;
+}`,
+        go: `package main
+
+import "fmt"
+
+func solution() {
+    // Your code here
+}
+
+func main() {
+    solution()
+}`
+      }
+      
+      const newStarter = languageStarters[newLanguage] || languageStarters.javascript
+      setCode(newStarter)
+      toast.success(`Switched to ${newLanguage.charAt(0).toUpperCase() + newLanguage.slice(1)}`)
+    }
+  }
+
+  const handleRunCode = async (userCode: string) => {
+    if (!currentChallenge) return
+    
+    // Validate code before execution
+    const trimmedCode = userCode.trim()
+    if (!trimmedCode || trimmedCode === currentChallenge.starterCode?.trim()) {
+      toast.error('Please write some code before running tests!')
+      
+      // Set all tests as failed for empty/boilerplate code
+      const failedResults: CodeExecution[] = currentChallenge.testCases.map((testCase) => ({
+        success: false,
+        output: 'No output - code is empty or unchanged',
+        error: 'Code is empty or contains only boilerplate code',
+        executionTime: 0,
+        memoryUsage: 0,
+        input: testCase.input,
+        expectedOutput: testCase.expectedOutput
+      }))
+      
+      setTestResults(failedResults)
+      return
+    }
+    
+    // Enhanced code validation - much stricter
+    const validateCode = () => {
+      // Basic structure validation
+      if (language === 'javascript') {
+        const hasFunction = trimmedCode.includes('function') || trimmedCode.includes('=>') || trimmedCode.includes('const') || trimmedCode.includes('let')
+        const hasReturn = trimmedCode.includes('return')
+        const hasLogic = trimmedCode.includes('if') || trimmedCode.includes('for') || trimmedCode.includes('while') || trimmedCode.includes('switch')
+        
+        if (!hasFunction || !hasReturn) {
+          return { valid: false, error: 'Code must contain a function that returns a value' }
+        }
+        if (!hasLogic && trimmedCode.length < 100) {
+          return { valid: false, error: 'Solution appears too simple. Please implement proper logic.' }
+        }
+      } else if (language === 'python') {
+        const hasFunction = trimmedCode.includes('def ') 
+        const hasReturn = trimmedCode.includes('return')
+        const hasLogic = trimmedCode.includes('if') || trimmedCode.includes('for') || trimmedCode.includes('while')
+        
+        if (!hasFunction || !hasReturn) {
+          return { valid: false, error: 'Code must contain a function definition that returns a value' }
+        }
+        if (!hasLogic && trimmedCode.length < 80) {
+          return { valid: false, error: 'Solution appears too simple. Please implement proper logic.' }
+        }
+      }
+      
+      // Check for hardcoded solutions
+      const suspiciousPatterns = [
+        /return\s*\[\s*\d+\s*(,\s*\d+)*\s*\]/gi, // return [1, 2, 3]
+        /return\s*\d+$/gm, // return 42
+        /return\s*"[^"]*"$/gm, // return "hello"
+        /return\s*true|false$/gm // return true
+      ]
+      
+      const hasOnlyHardcodedReturns = suspiciousPatterns.some(pattern => {
+        const matches = trimmedCode.match(pattern)
+        return matches && matches.length > 0 && trimmedCode.split('\n').filter(line => line.trim() && !line.trim().startsWith('//')).length < 4
+      })
+      
+      if (hasOnlyHardcodedReturns) {
+        return { valid: false, error: 'Solution appears to return hardcoded values. Please implement proper algorithmic logic.' }
+      }
+      
+      return { valid: true, error: null }
+    }
+    
+    const validation = validateCode()
+    if (!validation.valid) {
+      toast.error(validation.error)
+      
+      const failedResults: CodeExecution[] = currentChallenge.testCases.map((testCase) => ({
+        success: false,
+        output: 'Code validation failed',
+        error: validation.error || 'Validation failed',
+        executionTime: 0,
+        memoryUsage: 0,
+        input: testCase.input,
+        expectedOutput: testCase.expectedOutput
+      }))
+      
+      setTestResults(failedResults)
+      return
+    }
+    
+    toast.loading('Running code...')
+    
+    try {
+      console.log('Executing code with test cases:', currentChallenge.testCases?.length || 0)
+      console.log('User code being executed:', userCode.substring(0, 200) + '...')
+      
+      const data = await codingTestService.executeCode(userCode, language, currentChallenge.testCases)
+      console.log('Backend response:', data)
+
+      // Handle the backend response format
+      let results: CodeExecution[] = []
+      
+      if (data && data.results && Array.isArray(data.results)) {
+        results = data.results.map((result: any, index: number) => ({
+          success: result.success || false,
+          output: result.output || '',
+          error: result.error || null,
+          executionTime: result.executionTime || 0,
+          memoryUsage: result.memoryUsage || 0,
+          input: currentChallenge.testCases[index]?.input || '',
+          expectedOutput: currentChallenge.testCases[index]?.expectedOutput || ''
+        }))
+      } else if (data && data.success === false) {
+        // Handle API error response
+        const errorMessage = data.error || 'Code execution failed'
+        results = currentChallenge.testCases.map((testCase) => ({
+          success: false,
+          output: 'Execution failed',
+          error: errorMessage,
+          executionTime: 0,
+          memoryUsage: 0,
+          input: testCase.input,
+          expectedOutput: testCase.expectedOutput
+        }))
+      } else {
+        // Fallback: create failed results for each test case
+        results = currentChallenge.testCases.map((testCase) => ({
+          success: false,
+          output: 'Execution failed',
+          error: 'Unable to execute code - server error or invalid response',
+          executionTime: 0,
+          memoryUsage: 0,
+          input: testCase.input,
+          expectedOutput: testCase.expectedOutput
+        }))
+      }
+      
+      setTestResults(results)
+      
+      const passedTests = results.filter(r => r.success).length
+      const totalTests = results.length
+      
+      toast.dismiss()
+      
+      if (passedTests === totalTests && passedTests > 0) {
+        toast.success(`All ${totalTests} test cases passed! 🎉`)
+      } else if (passedTests > 0) {
+        toast.success(`${passedTests}/${totalTests} test cases passed`)
+      } else {
+        toast.error(`${passedTests}/${totalTests} test cases passed - Check your code!`)
+      }
+    } catch (err) {
+      console.error('Code execution error:', err)
+      toast.dismiss()
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to execute code. Please check your syntax and try again.'
+      if (err instanceof Error) {
+        if (err.message.includes('network') || err.message.includes('fetch')) {
+          errorMessage = 'Network error: Unable to connect to code execution service.'
+        } else if (err.message.includes('timeout')) {
+          errorMessage = 'Code execution timed out. Your code may have an infinite loop.'
+        } else if (err.message.includes('syntax')) {
+          errorMessage = 'Syntax error in your code. Please check for typos and missing brackets.'
+        }
+      }
+      
+      toast.error(errorMessage)
+      
+      // Set all tests as failed on execution error with more descriptive messages
+      const failedResults: CodeExecution[] = currentChallenge.testCases.map((testCase, index) => ({
+        success: false,
+        output: 'Execution failed',
+        error: `Test case ${index + 1}: ${err instanceof Error ? err.message : 'Code execution failed'}`,
+        executionTime: 0,
+        memoryUsage: 0,
+        input: testCase.input,
+        expectedOutput: testCase.expectedOutput
+      }))
+      
+      setTestResults(failedResults)
+    }
+  }
+
+  // Function to handle solution submission
+  const handleSubmitSolution = async () => {
+    if (!currentChallenge || !code.trim()) {
+      toast.error('Please write some code before submitting.')
+      return
+    }
+
+    try {
+      // Save the current solution
+      const submission = {
+        challengeId: currentChallenge.id,
+        code: code,
+        language: language,
+        timestamp: new Date().toISOString(),
+        testResults: testResults,
+        timeElapsed: testStartTime ? Math.floor((new Date().getTime() - testStartTime.getTime()) / 1000) : 0
+      }
+
+      // Save to interview store
+      saveResponse(`coding-test-submission-${currentChallenge.id}`, JSON.stringify(submission))
+      
+      // Optional: Also run the code to get latest test results
+      if (currentChallenge.testCases && currentChallenge.testCases.length > 0) {
+        await handleRunCode(code)
+      }
+
+      toast.success('Solution submitted successfully! You can continue working or end the test.')
+      console.log('Solution submitted:', submission)
+      
+    } catch (error) {
+      console.error('Error submitting solution:', error)
+      toast.error('Failed to submit solution. Please try again.')
+    }
+  }
+
+  // Countdown sequence function
+  const startCountdownSequence = () => {
+    let count = 3
+    setCountdownValue(count)
+    
+    const countdownInterval = setInterval(() => {
+      count--
+      if (count > 0) {
+        setCountdownValue(count)
+      } else {
+        clearInterval(countdownInterval)
+        setCountdownValue(0)
+        // Show "Start - Good Luck!" message
+        setTimeout(() => {
+          setShowCountdown(false)
+          setTestReady(true)
+        }, 1000)
+      }
+    }, 1000)
+  }
+
+  // Camera cleanup function
+  const cleanupCamera = async () => {
+    try {
+      console.log('🧹 Starting comprehensive camera cleanup...')
+      
+      // Method 1: Stop any existing streams from video elements
+      const videoElements = document.querySelectorAll('video')
+      videoElements.forEach(video => {
+        if (video.srcObject) {
+          const videoStream = video.srcObject as MediaStream
+          if (videoStream && videoStream.getTracks) {
+            videoStream.getTracks().forEach(track => {
+              console.log('🛑 Stopping video track:', track.label, track.readyState)
+              track.stop()
+            })
+          }
+          video.srcObject = null
+          video.load() // Force reload to clear the stream
+          console.log('🧹 Cleared video srcObject and reloaded')
+        }
+      })
+      
+      // Method 2: Stop all media devices globally
+      try {
+        // Try to get and stop any existing user media
+        const tempStream = await navigator.mediaDevices.getUserMedia({ 
+          video: true, 
+          audio: false 
+        }).catch(() => null)
+        
+        if (tempStream) {
+          tempStream.getTracks().forEach(track => {
+            console.log('🛑 Stopping temp track:', track.label)
+            track.stop()
+          })
+        }
+      } catch (error) {
+        console.log('ℹ️ No active media stream to stop:', error)
+      }
+      
+      // Method 3: Clear any global stream references
+      if ((window as any).activeMediaStreams) {
+        const activeStreams = (window as any).activeMediaStreams || []
+        activeStreams.forEach((stream: MediaStream) => {
+          if (stream && stream.getTracks) {
+            stream.getTracks().forEach((track: MediaStreamTrack) => {
+              if (track.readyState === 'live') {
+                console.log('🛑 Stopping global active track:', track.label)
+                track.stop()
+              }
+            })
+          }
+        })
+        delete (window as any).activeMediaStreams
+      }
+      
+      // Method 4: Force cleanup of all video input devices
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        const videoDevices = devices.filter(device => device.kind === 'videoinput')
+        console.log(`📹 Found ${videoDevices.length} video devices - all should be freed now`)
+      } catch (error) {
+        console.log('ℹ️ Error enumerating devices during cleanup:', error)
+      }
+      
+      // Method 5: Clear any CameraPreview component state
+      const cameraPreviewElements = document.querySelectorAll('[data-camera-preview]')
+      cameraPreviewElements.forEach(element => {
+        (element as any).cleanup?.()
+      })
+      
+      console.log('✅ Comprehensive camera cleanup completed - camera light should be off')
+    } catch (error) {
+      console.log('ℹ️ Camera cleanup completed with minor issues:', error)
+    }
+    
+    // Add a small delay to ensure cleanup is processed
+    await new Promise(resolve => setTimeout(resolve, 500))
+  }
+
+  // Handle navigation away from coding test
+  const handleBackToHome = async () => {
+    console.log('🏠 Navigating back to home - ending coding test...')
+    
+    try {
+      // Clean up camera and audio
+      await cleanupCamera()
+      
+      // Clear any stored session data
+      localStorage.removeItem('coding-session-id')
+      localStorage.removeItem('coding-test-active')
+      
+      // Stop any running test timers
+      setIsTestActive(false)
+      
+      console.log('🧹 Cleanup completed, navigating to home')
+      navigate('/')
+      
+    } catch (error) {
+      console.error('❌ Error during coding test cleanup:', error)
+      // Even if cleanup fails, still navigate away
+      navigate('/')
+    }
+  }
+
+  // Cleanup effect for component unmount
+  useEffect(() => {
+    return () => {
+      console.log('🧹 CodingTest component unmounting - cleaning up...')
+      // Stop test timer
+      setIsTestActive(false)
+      // Force camera cleanup
+      cleanupCamera()
+      // Clear any stored session data
+      localStorage.removeItem('coding-session-id')
+      localStorage.removeItem('coding-test-active')
+    }
+  }, [])
+
+  if (isLoadingChallenge || (!currentChallenge && !showCountdown)) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-slate-900 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center space-y-8 p-8"
+        >
+          <div className="relative">
+            <div className="w-24 h-24 mx-auto bg-gradient-to-r from-green-500 to-blue-500 rounded-3xl flex items-center justify-center shadow-2xl">
+              <Loader2 className="h-12 w-12 text-white animate-spin" />
+            </div>
+            <div className="absolute -top-2 -right-2 w-8 h-8 bg-orange-500 rounded-full animate-pulse flex items-center justify-center">
+              <Code className="h-4 w-4 text-white" />
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+              Preparing Your Coding Test
+            </h2>
+            <div className="space-y-2">
+              <p className="text-xl text-green-600 dark:text-green-400 font-bold">
+                {selectedTechStack === 'Generic' ? 'Data Structures & Algorithms Test' : `${selectedTechStack} Programming Test`}
+              </p>
+              <p className="text-lg text-blue-600 dark:text-blue-400 font-semibold">
+                Difficulty: {selectedLevel}
+              </p>
+              <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
+                {selectedTechStack === 'Generic' ? 
+                  'Generating a language-agnostic DSA challenge and starting the test automatically...' :
+                  'Generating your challenge and starting the test automatically...'}
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                ⏱️ This typically takes 5-15 seconds
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex justify-center">
+            <div className="flex space-x-2">
+              {[0, 1, 2, 3].map((i) => (
+                <motion.div
+                  key={i}
+                  className="w-3 h-3 bg-green-500 rounded-full"
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.5, 1, 0.5],
+                  }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    delay: i * 0.2,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+          
+          {loadingError && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 max-w-md mx-auto"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                <h3 className="font-bold text-red-800 dark:text-red-200">Loading Error</h3>
+              </div>
+              <p className="text-red-700 dark:text-red-300 mb-4">{loadingError}</p>
+              <button
+                onClick={() => {
+                  setLoadingError(null)
+                  fetchCodingChallenge()
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors duration-200"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Retry Loading
+              </button>
+            </motion.div>
+          )}
+          
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            🤖 AI-generated coding challenges
+          </p>
+        </motion.div>
+      </div>
+    )
+  }
+
+  // Countdown Screen
+  if (showCountdown) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-slate-900 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 1.2 }}
+          className="text-center space-y-12 p-8"
+        >
+          <div className="relative">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", duration: 0.8 }}
+              className="w-48 h-48 mx-auto bg-gradient-to-r from-green-500 via-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-2xl"
+            >
+              {countdownValue > 0 ? (
+                <motion.span
+                  key={countdownValue}
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 1.5, opacity: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="text-8xl font-bold text-white"
+                >
+                  {countdownValue}
+                </motion.span>
+              ) : (
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="text-center"
+                >
+                  <div className="text-3xl font-bold text-white mb-2">START</div>
+                  <div className="text-xl text-white/80">Good Luck!</div>
+                </motion.div>
+              )}
+            </motion.div>
+          </div>
+          
+          <div className="space-y-4">
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="text-4xl font-bold text-gray-900 dark:text-white"
+            >
+              {countdownValue > 0 ? 'Get Ready!' : 'Starting Coding Test'}
+            </motion.h2>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="space-y-2"
+            >
+              <p className="text-xl text-green-600 dark:text-green-400 font-bold">
+                {selectedTechStack === 'Generic' ? 'Data Structures & Algorithms' : selectedTechStack} • {selectedLevel} Level
+              </p>
+              <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
+                {countdownValue > 0 
+                  ? 'Your coding challenge is ready and waiting!'
+                  : 'Your coding test is beginning now...'
+                }
+              </p>
+            </motion.div>
+          </div>
+          
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7 }}
+            className="flex justify-center space-x-4"
+          >
+            {[0, 1, 2, 3].map((i) => (
+              <motion.div
+                key={i}
+                className="w-4 h-4 bg-gradient-to-r from-green-500 to-blue-500 rounded-full"
+                animate={{
+                  scale: [1, 1.3, 1],
+                  opacity: [0.6, 1, 0.6],
+                }}
+                transition={{
+                  duration: 1.5,
+                  repeat: Infinity,
+                  delay: i * 0.1,
+                }}
+              />
+            ))}
+          </motion.div>
+        </motion.div>
+      </div>
+    )
+  }
+
+  // Don't show main test until countdown is complete
+  if (!testReady) {
+    return null
+  }
+
+  return (
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-slate-900">
+        {/* Header */}
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md shadow-xl border-b border-gray-200/50 dark:border-gray-700/50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-6">
+                <button 
+                  onClick={handleBackToHome}
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition-all duration-200 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                  aria-label="Return to home page"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  <span className="font-semibold">Back to Home</span>
+                </button>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                    Coding Test
+                  </h1>
+                  <p className="text-lg text-green-600 dark:text-green-400 font-semibold">
+                    {selectedTechStack === 'Generic' ? 'DSA Challenge' : `${selectedTechStack} Challenge`}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-6">
+                {isTestActive && (
+                  <div className="flex items-center space-x-4 bg-white/50 dark:bg-gray-700/50 px-4 py-2 rounded-xl">
+                    <div className="flex items-center space-x-2">
+                      <Clock className="h-5 w-5 text-gray-500" />
+                      <span className="font-bold text-orange-600 dark:text-orange-400">
+                        {formatTime(timeRemaining)}
+                      </span>
+                    </div>
+                    {testResults.length > 0 && (
+                      <div className="flex items-center space-x-2">
+                        <Award className="h-5 w-5 text-green-500" />
+                        <span className="font-bold text-green-600 dark:text-green-400">
+                          {passedTests}/{totalTests}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress Section */}
+        {isTestActive && currentChallenge && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+            <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-2xl p-4 shadow-lg border border-gray-200/50 dark:border-gray-700/50">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Test Progress</h3>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  {calculateProgress()}% Complete
+                </span>
+              </div>
+              <ProgressBar 
+                progress={calculateProgress()} 
+                color="green"
+                size="md"
+                animated={true}
+                showPercentage={false}
+              />
+              <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
+                <span>Time: {Math.round(((currentChallenge.timeLimit || 30) * 60 - timeRemaining) / ((currentChallenge.timeLimit || 30) * 60) * 100)}%</span>
+                <span>Tests: {testResults.length > 0 ? Math.round((passedTests / testResults.length) * 100) : 0}%</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {currentChallenge && (
+            <div>
+              {isTestActive ? (
+                /* Active Test */
+                <div className="grid lg:grid-cols-2 gap-6 h-[calc(100vh-250px)]">
+                  {/* Left Panel - Question Details */}
+                  <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/50 overflow-y-auto">
+                    <div className="space-y-6">
+                      <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                          {currentChallenge.title}
+                        </h2>
+                        <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                          currentChallenge.difficulty === 'Easy' 
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                            : currentChallenge.difficulty === 'Medium'
+                            ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                        }`}>
+                          {currentChallenge.difficulty}
+                        </span>
+                        <span className="ml-3 text-sm text-gray-600 dark:text-gray-400">
+                          {selectedTechStack}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Problem Description</h3>
+                        <div 
+                          className="text-gray-700 dark:text-gray-300 leading-relaxed space-y-2"
+                          style={{ whiteSpace: 'pre-wrap' }}
+                        >
+                          {currentChallenge.description}
+                        </div>
+                      </div>
+
+                      {currentChallenge.examples && currentChallenge.examples.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Examples</h3>
+                          <div className="space-y-3">
+                            {currentChallenge.examples.map((example, index) => (
+                              <div key={index} className="bg-white/80 dark:bg-gray-700/80 rounded-lg p-3 border-l-4 border-blue-500">
+                                <div className="space-y-2">
+                                  <div>
+                                    <span className="text-blue-700 dark:text-blue-300 font-medium">Input:</span>
+                                    <code className="ml-2 font-mono text-sm bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded">
+                                      {example.input}
+                                    </code>
+                                  </div>
+                                  <div>
+                                    <span className="text-green-700 dark:text-green-300 font-medium">Output:</span>
+                                    <code className="ml-2 font-mono text-sm bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded">
+                                      {example.output}
+                                    </code>
+                                  </div>
+                                  {example.explanation && (
+                                    <div>
+                                      <span className="text-purple-700 dark:text-purple-300 font-medium">Explanation:</span>
+                                      <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                                        {example.explanation}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Hints Section */}
+                      {currentChallenge.hints && currentChallenge.hints.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">💡 Hints</h3>
+                          <div className="space-y-2">
+                            {currentChallenge.hints.map((hint, index) => (
+                              <div key={index} className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                                <div className="flex items-start space-x-2">
+                                  <span className="text-yellow-600 dark:text-yellow-400 font-bold text-sm">
+                                    Hint {index + 1}:
+                                  </span>
+                                  <span className="text-yellow-800 dark:text-yellow-200 text-sm">
+                                    {hint}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Test Cases Display */}
+                      {currentChallenge.testCases && currentChallenge.testCases.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Test Cases</h3>
+                          <div className="space-y-3">
+                            {currentChallenge.testCases.slice(0, 3).map((testCase, index) => (
+                              <div key={index} className="bg-white/80 dark:bg-gray-700/80 rounded-lg p-3 border-l-4 border-purple-500">
+                                <div className="space-y-2">
+                                  <div className="font-medium text-purple-700 dark:text-purple-300">
+                                    Test Case {index + 1}
+                                  </div>
+                                  {testCase.description && (
+                                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                                      {testCase.description}
+                                    </div>
+                                  )}
+                                  <div>
+                                    <span className="text-blue-700 dark:text-blue-300 font-medium">Input:</span>
+                                    <code className="ml-2 font-mono text-sm bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded">
+                                      {typeof testCase.input === 'object' ? JSON.stringify(testCase.input) : String(testCase.input)}
+                                    </code>
+                                  </div>
+                                  <div>
+                                    <span className="text-green-700 dark:text-green-300 font-medium">Expected:</span>
+                                    <code className="ml-2 font-mono text-sm bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded">
+                                      {typeof testCase.expectedOutput === 'object' ? JSON.stringify(testCase.expectedOutput) : String(testCase.expectedOutput)}
+                                    </code>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                            {currentChallenge.testCases.length > 3 && (
+                              <div className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                                + {currentChallenge.testCases.length - 3} more test cases (hidden during test)
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Test Results */}
+                      {testResults.length > 0 && (
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Test Results</h3>
+                            <div className="flex items-center space-x-2">
+                              <div className={`px-3 py-1 rounded-full text-sm font-bold ${
+                                passedTests === totalTests 
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                  : passedTests > totalTests / 2
+                                  ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                              }`}>
+                                {passedTests}/{totalTests} Passed
+                              </div>
+                              {passedTests === totalTests && (
+                                <div className="text-green-500 text-lg">🎉</div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            {testResults.slice(0, 3).map((result, index) => (
+                              <div 
+                                key={index} 
+                                className={`p-3 rounded-lg text-sm ${
+                                  result.success 
+                                    ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800' 
+                                    : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800'
+                                }`}
+                              >
+                                <div className="font-medium">
+                                  Test Case {index + 1}: {result.success ? '✓ Passed' : '✗ Failed'}
+                                </div>
+                                {!result.success && result.error && (
+                                  <div className="mt-1 text-xs opacity-75">
+                                    {result.error}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                            {testResults.length > 3 && (
+                              <div className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                                + {testResults.length - 3} more test results
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Panel - Code Editor */}
+                  <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden flex flex-col">
+                    
+                    {/* Code Editor */}
+                    <div className="flex-1 overflow-hidden">
+                      <CodeEditor
+                        value={code}
+                        language={language}
+                        onChange={setCode}
+                        onExecute={() => handleRunCode(code)}
+                        boilerplateCode={currentChallenge?.starterCode || ''}
+                        className="h-full"
+                      />
+                    </div>
+
+                    {/* Editor Footer with Actions and Test Results */}
+                    <div className="bg-gray-50/80 dark:bg-gray-700/80 border-t border-gray-200/50 dark:border-gray-600/50">
+                      {/* Action Buttons */}
+                      <div className="flex items-center justify-between p-4 border-b border-gray-200/50 dark:border-gray-600/50">
+                        <div className="flex items-center space-x-4">
+                          {selectedTechStack === 'Generic' && (
+                            <select
+                              value={language}
+                              onChange={(e) => handleLanguageChange(e.target.value)}
+                              className="px-3 py-1 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg text-sm"
+                            >
+                              <option value="javascript">JavaScript</option>
+                              <option value="python">Python</option>
+                              <option value="java">Java</option>
+                              <option value="cpp">C++</option>
+                              <option value="go">Go</option>
+                            </select>
+                          )}
+                          <button
+                            onClick={() => handleRunCode(code)}
+                            className="inline-flex items-center space-x-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-sm font-medium"
+                          >
+                            <Play className="h-4 w-4" />
+                            <span>Run Tests</span>
+                          </button>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={handleSubmitSolution}
+                            className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-medium"
+                          >
+                            <Save className="h-4 w-4" />
+                            <span>Submit</span>
+                          </button>
+                          <button
+                            onClick={handleEndTest}
+                            className="inline-flex items-center space-x-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors text-sm font-medium"
+                          >
+                            <Square className="h-4 w-4" />
+                            <span>End Test</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Test Results */}
+                      {testResults.length > 0 && (
+                        <div className="border-t border-gray-200/50 dark:border-gray-600/50">
+                          <div 
+                            className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-100/50 dark:hover:bg-gray-600/50 transition-colors"
+                            onClick={() => setIsTestResultsCollapsed(!isTestResultsCollapsed)}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <svg 
+                                className={`w-4 h-4 transition-transform ${isTestResultsCollapsed ? 'rotate-0' : 'rotate-90'}`}
+                                fill="none" 
+                                stroke="currentColor" 
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                Test Results ({passedTests}/{totalTests} passed)
+                              </h3>
+                            </div>
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                              passedTests === totalTests 
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                : passedTests > 0
+                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+                                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                            }`}>
+                              {Math.round((passedTests / totalTests) * 100)}%
+                            </span>
+                          </div>
+                          
+                          {!isTestResultsCollapsed && (
+                            <div className="px-3 pb-3 max-h-40 overflow-y-auto">
+                              <div className="space-y-2">
+                                {testResults.map((result, index) => (
+                                  <div
+                                    key={index}
+                                    className={`p-2 rounded border-l-4 text-xs ${
+                                      result.success
+                                        ? 'bg-green-50 dark:bg-green-900/20 border-green-500'
+                                        : 'bg-red-50 dark:bg-red-900/20 border-red-500'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="font-medium text-gray-700 dark:text-gray-300">
+                                        Test Case {index + 1}
+                                      </span>
+                                      <span className={`font-bold ${
+                                        result.success ? 'text-green-600' : 'text-red-600'
+                                      }`}>
+                                        {result.success ? 'PASSED' : 'FAILED'}
+                                      </span>
+                                    </div>
+                                    
+                                    <div className="space-y-1">
+                                      <div>
+                                        <span className="font-medium text-gray-600 dark:text-gray-400">Input:</span>
+                                        <code className="ml-1 px-1 bg-gray-100 dark:bg-gray-700 rounded">
+                                          {typeof result.input === 'object' ? JSON.stringify(result.input) : String(result.input || '')}
+                                        </code>
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-gray-600 dark:text-gray-400">Expected:</span>
+                                        <code className="ml-1 px-1 bg-gray-100 dark:bg-gray-700 rounded">
+                                          {typeof result.expectedOutput === 'object' ? JSON.stringify(result.expectedOutput) : String(result.expectedOutput || '')}
+                                        </code>
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-gray-600 dark:text-gray-400">Output:</span>
+                                        <code className={`ml-1 px-1 rounded ${
+                                          result.success 
+                                            ? 'bg-green-100 dark:bg-green-900/30' 
+                                            : 'bg-red-100 dark:bg-red-900/30'
+                                        }`}>
+                                          {result.output || 'No output'}
+                                        </code>
+                                      </div>
+                                      {result.error && (
+                                        <div>
+                                          <span className="font-medium text-red-600 dark:text-red-400">Error:</span>
+                                          <code className="ml-1 px-1 bg-red-100 dark:bg-red-900/30 rounded text-red-700 dark:text-red-300">
+                                            {result.error}
+                                          </code>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {/* Draggable Camera Preview - only when test is active */}
+          {isTestActive && (
+            <div
+              ref={cameraRef}
+              className={`fixed z-40 ${
+                isCameraMinimized 
+                  ? 'w-20 h-16' 
+                  : 'w-56 h-40'
+              } bg-black rounded-xl overflow-hidden shadow-2xl border-2 border-white/20 cursor-move transition-all duration-300`}
+              style={{
+                left: `${cameraPosition.x}px`,
+                top: `${cameraPosition.y}px`,
+              }}
+              onMouseDown={handleMouseDown}
+            >
+              {/* Camera controls */}
+              <div className="absolute top-1 right-1 z-50 flex gap-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setIsCameraMinimized(!isCameraMinimized)
+                  }}
+                  className="w-6 h-6 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white text-xs"
+                  title={isCameraMinimized ? "Maximize camera" : "Minimize camera"}
+                >
+                  {isCameraMinimized ? '□' : '_'}
+                </button>
+              </div>
+              
+              {/* Camera preview */}
+              {!isCameraMinimized && (
+                <CameraPreview
+                  isVisible={true}
+                  onToggle={() => {}}
+                  className="w-full h-full"
+                  isDraggable={true}
+                />
+              )}
+              
+              {/* Minimized state indicator */}
+              {isCameraMinimized && (
+                <div className="w-full h-full flex items-center justify-center text-white text-xs">
+                  📹
+                </div>
+              )}
+              
+              {/* Recording indicator */}
+              <div className="absolute top-1 left-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+            </div>
+          )}
+        </div>
+
+        {/* Analysis Modal */}
+        <AnimatePresence>
+          {showAnalysis && analysisData && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={(e) => {
+                // Don't close modal by clicking background after test completion
+                e.stopPropagation()
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex flex-col gap-6">
+                  {/* Analysis Content */}
+                  <div className="p-6">
+                    <div className="text-center mb-6">
+                      <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                        🎯 Test Complete!
+                      </h2>
+                      <p className="text-lg text-gray-600 dark:text-gray-400">
+                        Here's your coding test analysis
+                      </p>
+                    </div>
+                    
+                    {/* Quick Stats */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                      <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                          {analysisData.overallScore || 0}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Overall Score</div>
+                      </div>
+                      <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
+                        <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                          {analysisData.passedTests || 0}/{analysisData.totalTests || 0}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Tests Passed</div>
+                      </div>
+                      <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl">
+                        <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                          {analysisData.duration || '0m 0s'}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Time Taken</div>
+                      </div>
+                      <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
+                        <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                          {analysisData.codeQuality || 0}/100
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Code Quality</div>
+                      </div>
+                    </div>
+                    
+                    {/* Feedback */}
+                    <div className="space-y-4">
+                      <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                        <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Overall Feedback</h3>
+                        <p className="text-gray-700 dark:text-gray-300">
+                          {analysisData.overallFeedback || 'Test completed successfully!'}
+                        </p>
+                      </div>
+                      
+                      {analysisData.strengths && analysisData.strengths.length > 0 && (
+                        <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4">
+                          <h3 className="font-semibold text-green-800 dark:text-green-200 mb-2">✅ Strengths</h3>
+                          <ul className="list-disc list-inside space-y-1 text-green-700 dark:text-green-300">
+                            {analysisData.strengths.map((strength: string, index: number) => (
+                              <li key={index}>{strength}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      
+                      {analysisData.improvements && analysisData.improvements.length > 0 && (
+                        <div className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-4">
+                          <h3 className="font-semibold text-orange-800 dark:text-orange-200 mb-2">🎯 Areas for Improvement</h3>
+                          <ul className="list-disc list-inside space-y-1 text-orange-700 dark:text-orange-300">
+                            {analysisData.improvements.map((improvement: string, index: number) => (
+                              <li key={index}>{improvement}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Footer Buttons */}
+                  <div className="flex justify-between items-center gap-4 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <span>🎉 Coding test completed successfully!</span>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          setShowAnalysis(false)
+                          navigate('/')
+                        }}
+                        className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                        Return Home
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowAnalysis(false)
+                          navigate('/dashboard')
+                        }}
+                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2 shadow-lg"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2v-4a2 2 0 00-2-2h-2a2 2 0 00-2 2v4a2 2 0 002 2m-6 0h6" />
+                        </svg>
+                        Go to Dashboard
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <CodingTestGuidelinesOverlay
+          isOpen={showGuidelinesOverlay}
+          onClose={() => setShowGuidelinesOverlay(false)}
+          onProceed={() => setShowGuidelinesOverlay(false)}
+          techStack={selectedTechStack}
+          level={selectedLevel}
+        />
+      </div>
+    </>
+  )
+}
