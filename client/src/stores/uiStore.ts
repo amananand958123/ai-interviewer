@@ -17,11 +17,19 @@ interface UIStore {
 
 export const useUIStore = create<UIStore>((set, get) => ({
   showGuidelinesOverlay: false,
+<<<<<<< HEAD
   selectedTechStack: 'Generic',
   selectedLevel: 'Basic',
   pendingNavigationPath: null,
 
   showInterviewGuidelines: (techStack = 'Generic', level = 'Basic', navigationPath = '/technical-interview') => {
+=======
+  selectedTechStack: 'JavaScript',
+  selectedLevel: 'Basic',
+  pendingNavigationPath: null,
+
+  showInterviewGuidelines: (techStack = 'JavaScript', level = 'Basic', navigationPath = '/technical-interview') => {
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     set({
       showGuidelinesOverlay: true,
       selectedTechStack: techStack,

@@ -58,14 +58,19 @@ export default function Dashboard() {
   // Function to fetch detailed session analysis
   const fetchSessionAnalysis = async (sessionId: string) => {
     setLoadingAnalysis(true)
+<<<<<<< HEAD
     setSessionAnalysis(null) // Clear previous analysis
     
     try {
       console.log('Fetching analysis for session:', sessionId)
+=======
+    try {
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       const response = await fetch(`http://localhost:3001/api/sessions/${sessionId}/analysis`, {
         credentials: 'include'
       })
       
+<<<<<<< HEAD
       console.log('Analysis response status:', response.status)
       
       if (response.ok) {
@@ -86,6 +91,16 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error fetching session analysis:', error)
       setSessionAnalysis('ERROR')
+=======
+      if (response.ok) {
+        const data = await response.json()
+        setSessionAnalysis(data.analysis)
+      } else {
+        console.error('Failed to fetch session analysis')
+      }
+    } catch (error) {
+      console.error('Error fetching session analysis:', error)
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     } finally {
       setLoadingAnalysis(false)
     }
@@ -153,7 +168,11 @@ export default function Dashboard() {
         // Add a small delay to ensure backend has processed the session
         setTimeout(() => {
           fetchDashboardData()
+<<<<<<< HEAD
         }, 2000) // Increased delay to 2 seconds
+=======
+        }, 1000)
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       }
     }
   }, [isAuthenticated, fetchDashboardData])
@@ -584,6 +603,7 @@ export default function Dashboard() {
                         </p>
                       </div>
                     </div>
+<<<<<<< HEAD
                     <div className="flex items-center space-x-3">                  <div className="text-right">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">
                       {session.endTime ? (session.overallScore ? `${session.overallScore}%` : 'Completed') : 'In Progress'}
@@ -592,6 +612,17 @@ export default function Dashboard() {
                       {session.duration}m
                     </p>
                   </div>
+=======
+                    <div className="flex items-center space-x-3">
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {session.overallScore ? `${session.overallScore}%` : 'In Progress'}
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          {session.duration}m
+                        </p>
+                      </div>
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                       <Eye className="h-4 w-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
                     </div>
                   </div>
@@ -633,6 +664,7 @@ export default function Dashboard() {
               {loadingAnalysis ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-10 w-10 text-blue-500 animate-spin" />
+<<<<<<< HEAD
                   <span className="ml-3 text-gray-600 dark:text-gray-400">Loading analysis...</span>
                 </div>
               ) : sessionAnalysis === 'NOT_FOUND' ? (
@@ -665,6 +697,10 @@ export default function Dashboard() {
                   </button>
                 </div>
               ) : sessionAnalysis && Array.isArray(sessionAnalysis) && sessionAnalysis.length > 0 ? (
+=======
+                </div>
+              ) : sessionAnalysis ? (
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                 <div className="space-y-4">
                   <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
                     <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
@@ -744,12 +780,20 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="text-center py-12">
+<<<<<<< HEAD
                   <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                     No Analysis Data
                   </h4>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     This session doesn't have any analysis data available.
+=======
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                    No Analysis Available
+                  </h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    The selected session does not have any analysis data available.
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                   </p>
                 </div>
               )}

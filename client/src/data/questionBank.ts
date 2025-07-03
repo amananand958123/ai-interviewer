@@ -9,7 +9,11 @@ export interface Question {
   techStack: string
 }
 
+<<<<<<< HEAD
 export const allQuestionBank: Record<string, Question[]> = {
+=======
+export const questionBank: Record<string, Question[]> = {
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
   'Generic': [
     {
       id: 1,
@@ -968,7 +972,11 @@ export async function getRandomQuestions(techStack: string, count: number = 3, l
     console.error('Failed to get questions from Gemini, falling back to static questions:', error)
     
     // Fallback to static questions if Gemini fails
+<<<<<<< HEAD
     const questions = allQuestionBank[techStack] || allQuestionBank['JavaScript']
+=======
+    const questions = questionBank[techStack] || questionBank['JavaScript']
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     
     // Filter questions by level if specified
     let filteredQuestions = questions
@@ -999,6 +1007,7 @@ export function getRandomCodingChallenge(techStack: string) {
   return challenges[randomIndex]
 }
 
+<<<<<<< HEAD
 // Include tech stacks that are supported by the backend execution environment
 // JavaScript, Python, Java, and C++ are fully implemented with proper execution environments
 export const supportedTechStacks = ['Generic', 'JavaScript', 'Python', 'Java', 'C++']
@@ -1013,3 +1022,6 @@ supportedTechStacks.forEach(techStack => {
 
 export const techStacks = supportedTechStacks
 export { filteredQuestionBank as questionBank }
+=======
+export const techStacks = Object.keys(questionBank)
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e

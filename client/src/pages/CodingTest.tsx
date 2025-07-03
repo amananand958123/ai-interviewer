@@ -6,6 +6,10 @@ import {
   ArrowLeft, 
   Clock, 
   Award, 
+<<<<<<< HEAD
+=======
+  Play, 
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
   Square,
   Code,
   RefreshCw,
@@ -13,12 +17,19 @@ import {
   Loader2,
   Save
 } from 'lucide-react'
+<<<<<<< HEAD
 import { geminiService } from '../services/geminiService'
 
 import CodeEditor from '../components/CodeEditor'
 import CameraPreview, { CameraPreviewHandle } from '../components/CameraPreview'
 import CodingTestGuidelinesOverlay from '../components/CodingTestGuidelinesOverlay'
 import EnhancedEvaluation from '../components/EnhancedEvaluation'
+=======
+
+import CodeEditor from '../components/CodeEditor'
+import CameraPreview from '../components/CameraPreview'
+import CodingTestGuidelinesOverlay from '../components/CodingTestGuidelinesOverlay'
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
 import ProgressBar from '../components/ProgressBar'
 import { useInterviewStore } from '../stores/interviewStore'
 import * as codingTestService from '../services/codingTestService'
@@ -56,6 +67,7 @@ interface CodingChallenge {
   }>
 }
 
+<<<<<<< HEAD
 // Cache for generated boilerplate to avoid repeated API calls
 const boilerplateCache: Record<string, string> = {};
 
@@ -305,6 +317,8 @@ int main() {
   }
 }
 
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
 export default function CodingTest() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -330,7 +344,10 @@ export default function CodingTest() {
   const [isDragging, setIsDragging] = useState(false)
   const [isCameraMinimized, setIsCameraMinimized] = useState(false)
   const cameraRef = useRef<HTMLDivElement>(null)
+<<<<<<< HEAD
   const cameraPreviewRef = useRef<CameraPreviewHandle>(null)
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
 
   // Mouse event handlers for camera dragging
@@ -386,7 +403,10 @@ export default function CodingTest() {
   const [testCompleted, setTestCompleted] = useState(false) // Track if test is completed
   const [sessionId, setSessionId] = useState<string | null>(null) // Database session ID
   const [isTestResultsCollapsed, setIsTestResultsCollapsed] = useState(false) // Collapse test results
+<<<<<<< HEAD
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null) // Track timer interval
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
   
   // Countdown timer states
   const [showCountdown, setShowCountdown] = useState(false)
@@ -398,6 +418,7 @@ export default function CodingTest() {
     // Remove the restrictive completion check to allow retaking tests
     // Users should be able to practice coding tests multiple times
     
+<<<<<<< HEAD
     // Check for force bypass parameter
     const forceStart = searchParams.get('force') === 'true'
     if (forceStart) {
@@ -408,11 +429,14 @@ export default function CodingTest() {
       return
     }
     
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     // Only check for active session in another tab to prevent conflicts
     const sessionKey = `coding-test-active-${selectedTechStack}-${selectedLevel}`
     const existingSession = localStorage.getItem(sessionKey)
     
     if (existingSession) {
+<<<<<<< HEAD
       // Check if the session is recent (within last 15 minutes) to avoid blocking stale sessions
       try {
         const sessionData = JSON.parse(existingSession)
@@ -421,17 +445,33 @@ export default function CodingTest() {
         
         if (sessionTime > fifteenMinutesAgo) {
           toast.error('A coding test is already in progress in another tab. Add ?force=true to bypass.')
+=======
+      // Check if the session is recent (within last hour) to avoid blocking stale sessions
+      try {
+        const sessionData = JSON.parse(existingSession)
+        const sessionTime = new Date(sessionData.timestamp || sessionData)
+        const hourAgo = new Date(Date.now() - 60 * 60 * 1000)
+        
+        if (sessionTime > hourAgo) {
+          toast.error('A coding test is already in progress in another tab.')
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
           setTimeout(() => navigate('/'), 2000)
           return
         } else {
           // Clear stale session
           localStorage.removeItem(sessionKey)
+<<<<<<< HEAD
           console.log('🧹 Cleared stale session data')
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
         }
       } catch (e) {
         // If we can't parse the session data, remove it
         localStorage.removeItem(sessionKey)
+<<<<<<< HEAD
         console.log('🧹 Cleared invalid session data')
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       }
     }
     
@@ -471,6 +511,7 @@ export default function CodingTest() {
 
   // Timer countdown
   useEffect(() => {
+<<<<<<< HEAD
     // Clear any existing timer first
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current)
@@ -487,6 +528,13 @@ export default function CodingTest() {
               clearInterval(timerIntervalRef.current)
               timerIntervalRef.current = null
             }
+=======
+    let interval: NodeJS.Timeout
+    if (isTestActive && timeRemaining > 0) {
+      interval = setInterval(() => {
+        setTimeRemaining(prev => {
+          if (prev <= 1) {
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
             endTest()
             return 0
           }
@@ -494,6 +542,7 @@ export default function CodingTest() {
         })
       }, 1000)
     }
+<<<<<<< HEAD
     
     return () => {
       if (timerIntervalRef.current) {
@@ -526,10 +575,37 @@ export default function CodingTest() {
     localStorage.removeItem('coding-test-active')
     
     // Calculate analysis data for UI display (not for backend - that's handled in handleEndTest)
+=======
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [isTestActive, timeRemaining])
+
+  const endTest = async () => {
+    console.log('🔚 endTest() called')
+    
+    // Immediately stop the test and camera
+    setIsTestActive(false)
+    setTestReady(false) // Prevent showing "test ready" screen
+    
+    // Force immediate camera stop by stopping all media devices
+    console.log('🛑 Forcing immediate camera stop after test end')
+    await cleanupCamera()
+    
+    // Mark test as completed and prevent any re-access
+    setTestCompleted(true)
+    
+    // Clear session data to prevent re-entry
+    localStorage.removeItem('coding-session-id')
+    localStorage.removeItem('coding-test-active')
+    
+    // Calculate real analysis data based on actual execution results
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     if (testStartTime && currentChallenge) {
       const duration = new Date().getTime() - testStartTime.getTime()
       const durationMinutes = Math.floor(duration / 60000)
       const durationSeconds = Math.floor((duration % 60000) / 1000)
+<<<<<<< HEAD
       const durationString = `${durationMinutes}m ${durationSeconds}s`
       
       // Use actual test results if we have them
@@ -554,12 +630,40 @@ export default function CodingTest() {
           console.warn('Final execution failed:', error)
         }
       }
+=======
+      const durationString = `${durationMinutes}m ${durationSeconds}s`        // Use actual test results if we have them, otherwise run the tests one final time
+        let finalTestResults = testResults
+        if (testResults.length === 0 && code.trim()) {
+          try {
+            console.log('📊 Running final code analysis for test completion...')
+            const data = await codingTestService.executeCode(code, language, currentChallenge.testCases)
+            if (data.results && Array.isArray(data.results)) {
+              finalTestResults = data.results.map((result: any, index: number) => ({
+                success: result.success || false,
+                output: result.output || '',
+                error: result.error || null,
+                executionTime: result.executionTime || 0,
+                memoryUsage: result.memoryUsage || 0,
+                input: currentChallenge.testCases[index]?.input || '',
+                expectedOutput: currentChallenge.testCases[index]?.expectedOutput || ''
+              }))
+              setTestResults(finalTestResults)
+            }
+          } catch (error) {
+            console.warn('Final execution failed:', error)
+          }
+        }
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       
       const passedTests = finalTestResults.filter(r => r.success).length
       const totalTests = currentChallenge.testCases.length
       const passRate = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0
       
+<<<<<<< HEAD
       // Calculate detailed metrics for UI display
+=======
+      // Calculate detailed metrics based on actual execution results
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       const avgExecutionTime = finalTestResults.length > 0 
         ? finalTestResults.reduce((sum, r) => sum + (r.executionTime || 0), 0) / finalTestResults.length 
         : 0
@@ -568,23 +672,40 @@ export default function CodingTest() {
         : 0
       const hasErrors = finalTestResults.some(r => r.error)
       
+<<<<<<< HEAD
       // Performance analysis for UI
       const timeLimit = (currentChallenge.timeLimit || 30) * 60 * 1000
       const timeUsed = duration
       const timeEfficiencyPercentage = Math.max(0, 100 - ((timeUsed / timeLimit) * 100))
       
       // Code quality analysis for UI
+=======
+      // Performance analysis
+      const timeLimit = (currentChallenge.timeLimit || 30) * 60 * 1000 // Convert to milliseconds
+      const timeUsed = duration
+      const timeEfficiencyPercentage = Math.max(0, 100 - ((timeUsed / timeLimit) * 100))
+      
+      // Code quality analysis
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       const codeLength = code.length
       const hasComments = code.includes('//') || code.includes('/*') || code.includes('#')
       const hasProperStructure = code.includes('function') || code.includes('def') || code.includes('class') || code.includes('public')
       const hasControlFlow = code.includes('if') || code.includes('for') || code.includes('while') || code.includes('switch')
       const hasErrorHandling = code.includes('try') || code.includes('catch') || code.includes('except')
       
+<<<<<<< HEAD
       // Calculate component scores for UI
       const testScore = passRate
       const timeScore = Math.min(100, timeEfficiencyPercentage + 20)
       
       let codeQualityScore = 30
+=======
+      // Calculate component scores
+      const testScore = passRate // 0-100
+      const timeScore = Math.min(100, timeEfficiencyPercentage + 20) // Bonus for early completion
+      
+      let codeQualityScore = 30 // Base score
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       if (codeLength > 50) codeQualityScore += 15
       if (hasComments) codeQualityScore += 15
       if (hasProperStructure) codeQualityScore += 20
@@ -594,6 +715,7 @@ export default function CodingTest() {
       
       const performanceScore = avgExecutionTime < 1000 ? 90 : avgExecutionTime < 5000 ? 70 : 50
       
+<<<<<<< HEAD
       // Overall score calculation for UI
       const overallScore = Math.round(
         (testScore * 0.5) +
@@ -603,6 +725,17 @@ export default function CodingTest() {
       )
       
       // Generate feedback for UI
+=======
+      // Overall score calculation
+      const overallScore = Math.round(
+        (testScore * 0.5) +           // 50% weight on test results
+        (codeQualityScore * 0.25) +   // 25% weight on code quality  
+        (timeScore * 0.15) +          // 15% weight on time efficiency
+        (performanceScore * 0.1)      // 10% weight on execution performance
+      )
+      
+      // Generate detailed feedback based on actual results
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       const strengths = []
       const improvements = []
       
@@ -643,32 +776,65 @@ export default function CodingTest() {
           : "Advanced problems require deep understanding of complex algorithms and optimization."
       }
       
+<<<<<<< HEAD
       // Create analysis data for UI display
       const analysis = {
+=======
+      const analysis = {
+        // Core metrics - wrap numbers in objects if needed by backend
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
         overallScore,
         technicalAccuracy: testScore,
         codeQuality: codeQualityScore,
         timeManagement: Math.round(timeScore),
         problemSolvingApproach: Math.round((testScore + codeQualityScore) / 2),
+<<<<<<< HEAD
+=======
+        
+        // Test results
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
         passedTests,
         totalTests,
         passRate,
         testResults: finalTestResults,
+<<<<<<< HEAD
         duration: durationString,
         timeUsed: Math.round(timeUsed / 1000),
         timeLimit: Math.round(timeLimit / 1000),
         timeEfficiency: Math.round(timeEfficiencyPercentage),
         avgExecutionTime: Math.round(avgExecutionTime),
         maxMemoryUsage,
+=======
+        
+        // Performance metrics
+        duration: durationString,
+        timeUsed: Math.round(timeUsed / 1000), // in seconds
+        timeLimit: Math.round(timeLimit / 1000), // in seconds
+        timeEfficiency: Math.round(timeEfficiencyPercentage),
+        avgExecutionTime: Math.round(avgExecutionTime),
+        maxMemoryUsage,
+        
+        // Code analysis
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
         codeLength,
         hasComments,
         hasProperStructure,
         hasControlFlow,
         hasErrorHandling,
         hasErrors,
+<<<<<<< HEAD
         challenge: currentChallenge.title,
         difficulty: currentChallenge.difficulty,
         techStack: currentChallenge.techStack || selectedTechStack,
+=======
+        
+        // Challenge info
+        challenge: currentChallenge.title,
+        difficulty: currentChallenge.difficulty,
+        techStack: currentChallenge.techStack || selectedTechStack,
+        
+        // Feedback
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
         strengths,
         improvements,
         overallFeedback: `You completed ${passedTests}/${totalTests} test cases in ${durationString}. ${difficultyFeedback}`,
@@ -676,9 +842,19 @@ export default function CodingTest() {
       }
       
       setAnalysisData(analysis)
+<<<<<<< HEAD
       setTestCompleted(true)
       
       // Save for local storage
+=======
+      
+      // Mark test as completed
+      setTestCompleted(true)
+      
+      console.log('📊 Analysis data created:', analysis)
+      
+      // Save the comprehensive results
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       const response = JSON.stringify({
         code,
         duration,
@@ -689,6 +865,7 @@ export default function CodingTest() {
       })
       saveResponse(`coding-test-${currentChallenge.id}`, response)
       
+<<<<<<< HEAD
       // Show analysis modal
       setShowAnalysis(true)
       
@@ -696,6 +873,131 @@ export default function CodingTest() {
       
     } else {
       // If no valid challenge or start time, create minimal analysis for UI
+=======
+      // Trigger dashboard refresh by setting a flag in localStorage
+      localStorage.setItem('dashboard-refresh-needed', 'true')
+      
+      // End database session
+      if (sessionId) {
+        try {
+          await sessionService.endSession(sessionId, overallScore, analysis)
+          console.log('✅ Database session ended successfully')
+        } catch (error) {
+          console.warn('⚠️ Failed to end database session:', error)
+        }
+      }
+      
+      // Update session with challenge and final analysis
+      if (sessionId) {
+        try {
+          // Format the analysis data for database storage
+          const formattedAnalysis = {
+            codeQuality: {
+              overall: codeQualityScore,
+              readability: hasComments ? 80 : 60,
+              efficiency: performanceScore,
+              bestPractices: hasProperStructure ? 85 : 50
+            },
+            performance: {
+              timeComplexity: avgExecutionTime < 1000 ? 'O(n)' : 'O(n²)',
+              spaceComplexity: 'O(1)',
+              optimality: performanceScore
+            },
+            testResults: finalTestResults.map(result => ({
+              input: String(result.input || ''),
+              expected: String(result.expectedOutput || ''),
+              actual: String(result.output || ''),
+              passed: result.success,
+              executionTime: result.executionTime || 0,
+              memoryUsage: result.memoryUsage || 0
+            })),
+            feedback: {
+              strengths: strengths,
+              improvements: improvements,
+              suggestions: [
+                difficultyFeedback,
+                `You completed ${passedTests}/${totalTests} test cases in ${durationString}.`
+              ]
+            },
+            breakdown: {
+              correctness: testScore,
+              efficiency: performanceScore,
+              codeQuality: codeQualityScore,
+              problemSolving: Math.round((testScore + codeQualityScore) / 2)
+            }
+          }
+          
+          await sessionService.updateSession(sessionId, {
+            challenge: currentChallenge,
+            response: JSON.stringify({ code, testResults: finalTestResults }),
+            evaluation: { 
+              score: overallScore, 
+              analysis: formattedAnalysis  // Send simplified analysis
+            }
+          })
+        } catch (error) {
+          console.warn('⚠️ Failed to update session with final data:', error)
+        }
+      }
+      
+      // Show analysis immediately after data is prepared
+      console.log('🔍 Showing analysis modal with data:', {
+        overallScore,
+        passedTests,
+        totalTests,
+        duration: durationString,
+        hasTestResults: finalTestResults.length > 0,
+        hasValidChallenge: !!currentChallenge,
+        analysisData: analysis,
+        showAnalysisState: showAnalysis,
+        testCompleted
+      })
+      setShowAnalysis(true)
+      
+      // Force a re-render to ensure the modal appears
+      setTimeout(() => {
+        if (!showAnalysis) {
+          console.log('🔧 Force setting showAnalysis to true again')
+          setShowAnalysis(true)
+        }
+      }, 100)
+      
+      console.log('🔍 Analysis modal state set - showAnalysis should be true now')
+      console.log('🔍 Analysis data structure:', JSON.stringify(analysis, null, 2))
+      
+      // Store test completion data for analytics but allow retaking
+      const testKey = `coding-test-history-${selectedTechStack}-${selectedLevel}`
+      const existingHistory = localStorage.getItem(testKey)
+      let history = []
+      
+      try {
+        history = existingHistory ? JSON.parse(existingHistory) : []
+      } catch (e) {
+        history = []
+      }
+      
+      // Add this test result to history
+      history.push({
+        completed: true,
+        timestamp: new Date().toISOString(),
+        score: overallScore,
+        duration: durationString,
+        testResults: finalTestResults.length
+      })
+      
+      // Keep only last 10 attempts to prevent localStorage bloat
+      if (history.length > 10) {
+        history = history.slice(-10)
+      }
+      
+      localStorage.setItem(testKey, JSON.stringify(history))
+      
+      // Remove active session marker
+      const sessionKey = `coding-test-active-${selectedTechStack}-${selectedLevel}`
+      localStorage.removeItem(sessionKey)
+    } else {
+      // If no valid challenge or start time, create minimal analysis
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       const minimumAnalysis = {
         overallScore: 0,
         technicalAccuracy: 0,
@@ -732,6 +1034,7 @@ export default function CodingTest() {
       setShowAnalysis(true)
     }
     
+<<<<<<< HEAD
     toast.success('Coding test completed!')
   }
 
@@ -851,6 +1154,20 @@ export default function CodingTest() {
     await endTest();
     
     toast.success('Coding test ended! Session closed and camera stopped.');
+=======
+    toast.success('Coding test completed! Camera monitoring ended.')
+  }
+
+  const handleEndTest = () => {
+    console.log('🔚 handleEndTest called - current state:', {
+      isTestActive,
+      testStartTime,
+      currentChallenge: currentChallenge?.title,
+      codeLength: code.length,
+      testResultsLength: testResults.length
+    })
+    endTest()
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
   }
 
   const formatTime = (seconds: number) => {
@@ -883,12 +1200,17 @@ export default function CodingTest() {
     try {
       const challenge = await codingTestService.generateChallenge(selectedTechStack, selectedDifficulty)
       setCurrentChallenge(challenge)
+<<<<<<< HEAD
       
       // Set language first based on tech stack
+=======
+      setCode(challenge.starterCode)
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       const langMap: Record<string, string> = {
         'JavaScript': 'javascript',
         'Python': 'python',
         'Java': 'java',
+<<<<<<< HEAD
         'C++': 'cpp',
         'Generic': 'javascript', // Generic allows user to choose
       }
@@ -909,6 +1231,11 @@ export default function CodingTest() {
         setCode(getBoilerplateSync(challenge, initialLanguage))
       }
       
+=======
+        'Node.js': 'javascript',
+      }
+      setLanguage(langMap[selectedTechStack] || 'javascript')
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       setIsLoadingChallenge(false) // Stop loading only on success
       
       // Start countdown after challenge is loaded
@@ -922,12 +1249,21 @@ export default function CodingTest() {
     }
   };
 
+<<<<<<< HEAD
   // Load challenge only after guidelines are dismissed and test hasn't been completed
   useEffect(() => {
     if (!showGuidelinesOverlay && !testCompleted) {
       fetchCodingChallenge()
     }
   }, [selectedTechStack, selectedDifficulty, showGuidelinesOverlay, testCompleted])
+=======
+  // Load challenge only after guidelines are dismissed
+  useEffect(() => {
+    if (!showGuidelinesOverlay) {
+      fetchCodingChallenge()
+    }
+  }, [selectedTechStack, selectedDifficulty, showGuidelinesOverlay])
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
 
   // Initialize code with starter code and start test when ready
   useEffect(() => {
@@ -946,12 +1282,17 @@ export default function CodingTest() {
           'Python': 'python',
           'Java': 'java',
           'C++': 'cpp',
+<<<<<<< HEAD
+=======
+          'Go': 'go'
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
         }
         initialLanguage = langMap[selectedTechStack] || 'javascript'
         setLanguage(initialLanguage)
       }
       
       // Generate proper boilerplate code for the language and challenge
+<<<<<<< HEAD
       try {
         // Use fallback first to show something quickly
         setCode(getBoilerplateSync(currentChallenge, initialLanguage))
@@ -968,6 +1309,10 @@ export default function CodingTest() {
       } catch (error) {
         console.error('Error setting initial boilerplate:', error);
       }
+=======
+      const boilerplate = currentChallenge.starterCode // Assuming starterCode is already good
+      setCode(boilerplate)
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       
       // Auto-start the test immediately after challenge is loaded
       setTimeout(async () => {
@@ -984,13 +1329,18 @@ export default function CodingTest() {
         setIsTestActive(true)
         setTestStartTime(new Date())
         setTimeRemaining((currentChallenge.timeLimit || 30) * 60)
+<<<<<<< HEAD
         console.log('✅ Test started automatically with challenge:', currentChallenge.title)
+=======
+        toast.success('Challenge loaded! Test started automatically.')
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       }, 1000)
     }
   }, [currentChallenge, isTestActive, language, selectedTechStack])
 
   // Handle language change for Generic tech stack
   const handleLanguageChange = (newLanguage: string) => {
+<<<<<<< HEAD
     console.log('🔄 Language change requested:', newLanguage, 'Current language:', language, 'Tech stack:', selectedTechStack)
     
     // Always update language state first
@@ -1028,13 +1378,84 @@ export default function CodingTest() {
 
   // Removed auto-update useEffect to prevent conflicts - language changes are handled directly in handleLanguageChange
 
+=======
+    if (selectedTechStack === 'Generic' && isTestActive) {
+      setLanguage(newLanguage)
+      
+      // Update boilerplate code for the new language
+      const languageStarters: Record<string, string> = {
+        javascript: `function solution() {
+    // Your code here
+    return null;
+}
+
+// Test your solution
+console.log(solution());`,
+        python: `def solution():
+    # Your code here
+    pass
+
+# Test your solution
+print(solution())`,
+        java: `public class Solution {
+    public static void main(String[] args) {
+        // Test your solution
+        Solution sol = new Solution();
+        System.out.println(sol.solution());
+    }
+    
+    public Object solution() {
+        // Your code here
+        return null;
+    }
+}`,
+        cpp: `#include <iostream>
+using namespace std;
+
+class Solution {
+public:
+    // Your code here
+    void solution() {
+        
+    }
+};
+
+int main() {
+    Solution sol;
+    sol.solution();
+    return 0;
+}`,
+        go: `package main
+
+import "fmt"
+
+func solution() {
+    // Your code here
+}
+
+func main() {
+    solution()
+}`
+      }
+      
+      const newStarter = languageStarters[newLanguage] || languageStarters.javascript
+      setCode(newStarter)
+      toast.success(`Switched to ${newLanguage.charAt(0).toUpperCase() + newLanguage.slice(1)}`)
+    }
+  }
+
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
   const handleRunCode = async (userCode: string) => {
     if (!currentChallenge) return
     
     // Validate code before execution
     const trimmedCode = userCode.trim()
+<<<<<<< HEAD
     const currentBoilerplate = getBoilerplateSync(currentChallenge, language).trim()
     if (!trimmedCode || trimmedCode === currentBoilerplate) {
+=======
+    if (!trimmedCode || trimmedCode === currentChallenge.starterCode?.trim()) {
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       toast.error('Please write some code before running tests!')
       
       // Set all tests as failed for empty/boilerplate code
@@ -1056,6 +1477,7 @@ export default function CodingTest() {
     const validateCode = () => {
       // Basic structure validation
       if (language === 'javascript') {
+<<<<<<< HEAD
         const hasFunction = trimmedCode.includes('function') || trimmedCode.includes('=>') || trimmedCode.includes('const') || trimmedCode.includes('let') || trimmedCode.includes('class')
         const hasReturn = trimmedCode.includes('return')
         const hasLogic = trimmedCode.includes('if') || trimmedCode.includes('for') || trimmedCode.includes('while') || trimmedCode.includes('switch') || 
@@ -1129,6 +1551,28 @@ export default function CodingTest() {
           if (trimmedCode.includes('int main()') && !trimmedCode.includes(originalMain)) {
             return { valid: false, error: 'Please do not modify the main() function. Only implement your solution in the designated function.' }
           }
+=======
+        const hasFunction = trimmedCode.includes('function') || trimmedCode.includes('=>') || trimmedCode.includes('const') || trimmedCode.includes('let')
+        const hasReturn = trimmedCode.includes('return')
+        const hasLogic = trimmedCode.includes('if') || trimmedCode.includes('for') || trimmedCode.includes('while') || trimmedCode.includes('switch')
+        
+        if (!hasFunction || !hasReturn) {
+          return { valid: false, error: 'Code must contain a function that returns a value' }
+        }
+        if (!hasLogic && trimmedCode.length < 100) {
+          return { valid: false, error: 'Solution appears too simple. Please implement proper logic.' }
+        }
+      } else if (language === 'python') {
+        const hasFunction = trimmedCode.includes('def ') 
+        const hasReturn = trimmedCode.includes('return')
+        const hasLogic = trimmedCode.includes('if') || trimmedCode.includes('for') || trimmedCode.includes('while')
+        
+        if (!hasFunction || !hasReturn) {
+          return { valid: false, error: 'Code must contain a function definition that returns a value' }
+        }
+        if (!hasLogic && trimmedCode.length < 80) {
+          return { valid: false, error: 'Solution appears too simple. Please implement proper logic.' }
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
         }
       }
       
@@ -1152,6 +1596,7 @@ export default function CodingTest() {
       return { valid: true, error: null }
     }
     
+<<<<<<< HEAD
     // Check if this was triggered from the "End Test" button (will be set by handleEndTest)
     const isEndingTest = (window as any).__endingTest === true;
     
@@ -1178,6 +1623,24 @@ export default function CodingTest() {
       console.log('⏭️ Skipping validation checks because test is ending');
       // Reset the flag
       (window as any).__endingTest = false;
+=======
+    const validation = validateCode()
+    if (!validation.valid) {
+      toast.error(validation.error)
+      
+      const failedResults: CodeExecution[] = currentChallenge.testCases.map((testCase) => ({
+        success: false,
+        output: 'Code validation failed',
+        error: validation.error || 'Validation failed',
+        executionTime: 0,
+        memoryUsage: 0,
+        input: testCase.input,
+        expectedOutput: testCase.expectedOutput
+      }))
+      
+      setTestResults(failedResults)
+      return
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     }
     
     toast.loading('Running code...')
@@ -1245,20 +1708,31 @@ export default function CodingTest() {
       console.error('Code execution error:', err)
       toast.dismiss()
       
+<<<<<<< HEAD
       // Provide more specific error messages based on the actual error
       let errorMessage = 'Failed to execute code. Please check your syntax and try again.'
       if (err instanceof Error) {
         if (err.message.includes('Failed to fetch') || err.message.includes('network') || err.message.includes('ERR_CONNECTION_REFUSED')) {
           errorMessage = 'Connection error: Unable to reach the code execution server. Please check your internet connection and try again.'
           console.error('🔌 Backend connection failed - server may be down or network issue')
+=======
+      // Provide more specific error messages
+      let errorMessage = 'Failed to execute code. Please check your syntax and try again.'
+      if (err instanceof Error) {
+        if (err.message.includes('network') || err.message.includes('fetch')) {
+          errorMessage = 'Network error: Unable to connect to code execution service.'
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
         } else if (err.message.includes('timeout')) {
           errorMessage = 'Code execution timed out. Your code may have an infinite loop.'
         } else if (err.message.includes('syntax')) {
           errorMessage = 'Syntax error in your code. Please check for typos and missing brackets.'
+<<<<<<< HEAD
         } else if (err.message.includes('CORS')) {
           errorMessage = 'Cross-origin request blocked. Please refresh the page and try again.'
         } else {
           errorMessage = `Execution failed: ${err.message}`
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
         }
       }
       
@@ -1340,6 +1814,7 @@ export default function CodingTest() {
     try {
       console.log('🧹 Starting comprehensive camera cleanup...')
       
+<<<<<<< HEAD
       // Method 1: Use camera component ref to stop camera properly
       if (cameraPreviewRef.current) {
         console.log('🎥 Stopping camera via component ref')
@@ -1347,6 +1822,9 @@ export default function CodingTest() {
       }
       
       // Method 2: Stop any existing streams from video elements
+=======
+      // Method 1: Stop any existing streams from video elements
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       const videoElements = document.querySelectorAll('video')
       videoElements.forEach(video => {
         if (video.srcObject) {
@@ -1363,6 +1841,7 @@ export default function CodingTest() {
         }
       })
       
+<<<<<<< HEAD
       // Method 3: Stop all media devices globally
       try {
         // Get all existing media tracks from navigator
@@ -1385,12 +1864,31 @@ export default function CodingTest() {
             // Expected if no camera or already stopped
             break
           }
+=======
+      // Method 2: Stop all media devices globally
+      try {
+        // Try to get and stop any existing user media
+        const tempStream = await navigator.mediaDevices.getUserMedia({ 
+          video: true, 
+          audio: false 
+        }).catch(() => null)
+        
+        if (tempStream) {
+          tempStream.getTracks().forEach(track => {
+            console.log('🛑 Stopping temp track:', track.label)
+            track.stop()
+          })
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
         }
       } catch (error) {
         console.log('ℹ️ No active media stream to stop:', error)
       }
       
+<<<<<<< HEAD
       // Method 4: Clear any global stream references
+=======
+      // Method 3: Clear any global stream references
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       if ((window as any).activeMediaStreams) {
         const activeStreams = (window as any).activeMediaStreams || []
         activeStreams.forEach((stream: MediaStream) => {
@@ -1406,6 +1904,18 @@ export default function CodingTest() {
         delete (window as any).activeMediaStreams
       }
       
+<<<<<<< HEAD
+=======
+      // Method 4: Force cleanup of all video input devices
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        const videoDevices = devices.filter(device => device.kind === 'videoinput')
+        console.log(`📹 Found ${videoDevices.length} video devices - all should be freed now`)
+      } catch (error) {
+        console.log('ℹ️ Error enumerating devices during cleanup:', error)
+      }
+      
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       // Method 5: Clear any CameraPreview component state
       const cameraPreviewElements = document.querySelectorAll('[data-camera-preview]')
       cameraPreviewElements.forEach(element => {
@@ -1418,7 +1928,11 @@ export default function CodingTest() {
     }
     
     // Add a small delay to ensure cleanup is processed
+<<<<<<< HEAD
     await new Promise(resolve => setTimeout(resolve, 1000))
+=======
+    await new Promise(resolve => setTimeout(resolve, 500))
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
   }
 
   // Handle navigation away from coding test
@@ -1450,6 +1964,7 @@ export default function CodingTest() {
   useEffect(() => {
     return () => {
       console.log('🧹 CodingTest component unmounting - cleaning up...')
+<<<<<<< HEAD
       
       // Clear timer interval
       if (timerIntervalRef.current) {
@@ -1458,6 +1973,8 @@ export default function CodingTest() {
         console.log('⏰ Timer interval cleared on unmount')
       }
       
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       // Stop test timer
       setIsTestActive(false)
       // Force camera cleanup
@@ -1468,6 +1985,7 @@ export default function CodingTest() {
     }
   }, [])
 
+<<<<<<< HEAD
   // Test backend connectivity
   const testBackendConnection = async () => {
     try {
@@ -1515,6 +2033,9 @@ export default function CodingTest() {
 
   // Only show loading screen if actually loading AND test hasn't been completed yet
   if (isLoadingChallenge && !testCompleted && !showAnalysis) {
+=======
+  if (isLoadingChallenge || (!currentChallenge && !showCountdown)) {
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-slate-900 flex items-center justify-center">
         <motion.div
@@ -1605,8 +2126,13 @@ export default function CodingTest() {
     )
   }
 
+<<<<<<< HEAD
   // Countdown Screen - only show if test is not completed
   if (showCountdown && !testCompleted) {
+=======
+  // Countdown Screen
+  if (showCountdown) {
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-slate-900 flex items-center justify-center">
         <motion.div
@@ -1700,6 +2226,7 @@ export default function CodingTest() {
     )
   }
 
+<<<<<<< HEAD
   // Don't show main test until countdown is complete, but always show after test completion or when analysis modal should appear
   if (!testReady && !testCompleted && !showAnalysis) {
     return null
@@ -1744,6 +2271,13 @@ export default function CodingTest() {
     )
   }
 
+=======
+  // Don't show main test until countdown is complete
+  if (!testReady) {
+    return null
+  }
+
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-slate-900">
@@ -1771,6 +2305,7 @@ export default function CodingTest() {
               </div>
               
               <div className="flex items-center space-x-6">
+<<<<<<< HEAD
                 {/* Connection Test Button - only show if needed */}
                 {!isTestActive && (
                   <button
@@ -1792,6 +2327,8 @@ export default function CodingTest() {
                   </button>
                 )}
                 
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                 {isTestActive && (
                   <div className="flex items-center space-x-4 bg-white/50 dark:bg-gray-700/50 px-4 py-2 rounded-xl">
                     <div className="flex items-center space-x-2">
@@ -1842,6 +2379,7 @@ export default function CodingTest() {
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<<<<<<< HEAD
           {/* Debug info when test is completed but modal not showing */}
           {testCompleted && !showAnalysis && (
             <div className="bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-800 rounded-lg p-4 mb-4">
@@ -1864,13 +2402,21 @@ export default function CodingTest() {
             </div>
           )}
           
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
           {currentChallenge && (
             <div>
               {isTestActive ? (
                 /* Active Test */
+<<<<<<< HEAD
                 <div className="grid lg:grid-cols-2 gap-6 min-h-[600px]">
                   {/* Left Panel - Question Details */}
                   <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/50 overflow-y-auto min-h-[400px] max-h-[85vh]">
+=======
+                <div className="grid lg:grid-cols-2 gap-6 h-[calc(100vh-250px)]">
+                  {/* Left Panel - Question Details */}
+                  <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/50 overflow-y-auto">
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                     <div className="space-y-6">
                       <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
@@ -1994,10 +2540,63 @@ export default function CodingTest() {
                           </div>
                         </div>
                       )}
+<<<<<<< HEAD
+=======
+
+                      {/* Test Results */}
+                      {testResults.length > 0 && (
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Test Results</h3>
+                            <div className="flex items-center space-x-2">
+                              <div className={`px-3 py-1 rounded-full text-sm font-bold ${
+                                passedTests === totalTests 
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                  : passedTests > totalTests / 2
+                                  ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                              }`}>
+                                {passedTests}/{totalTests} Passed
+                              </div>
+                              {passedTests === totalTests && (
+                                <div className="text-green-500 text-lg">🎉</div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            {testResults.slice(0, 3).map((result, index) => (
+                              <div 
+                                key={index} 
+                                className={`p-3 rounded-lg text-sm ${
+                                  result.success 
+                                    ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800' 
+                                    : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800'
+                                }`}
+                              >
+                                <div className="font-medium">
+                                  Test Case {index + 1}: {result.success ? '✓ Passed' : '✗ Failed'}
+                                </div>
+                                {!result.success && result.error && (
+                                  <div className="mt-1 text-xs opacity-75">
+                                    {result.error}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                            {testResults.length > 3 && (
+                              <div className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                                + {testResults.length - 3} more test results
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                     </div>
                   </div>
 
                   {/* Right Panel - Code Editor */}
+<<<<<<< HEAD
                   <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden flex flex-col min-h-[400px] max-h-[85vh]">
                     
                     {/* Header Section with Language Selector */}
@@ -2030,17 +2629,28 @@ export default function CodingTest() {
 
                     {/* Code Editor - Takes most of the space */}
                     <div className="flex-1 min-h-0 overflow-hidden">
+=======
+                  <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden flex flex-col">
+                    
+                    {/* Code Editor */}
+                    <div className="flex-1 overflow-hidden">
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                       <CodeEditor
                         value={code}
                         language={language}
                         onChange={setCode}
                         onExecute={() => handleRunCode(code)}
+<<<<<<< HEAD
                         boilerplateCode={getBoilerplateSync(currentChallenge, language)}
                         hideLanguageDisplay={true}
+=======
+                        boilerplateCode={currentChallenge?.starterCode || ''}
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                         className="h-full"
                       />
                     </div>
 
+<<<<<<< HEAD
 
 
                     {/* Test Results Section - Below Code Editor */}
@@ -2155,6 +2765,146 @@ export default function CodingTest() {
                           <span>End Test</span>
                         </button>
                       </div>
+=======
+                    {/* Editor Footer with Actions and Test Results */}
+                    <div className="bg-gray-50/80 dark:bg-gray-700/80 border-t border-gray-200/50 dark:border-gray-600/50">
+                      {/* Action Buttons */}
+                      <div className="flex items-center justify-between p-4 border-b border-gray-200/50 dark:border-gray-600/50">
+                        <div className="flex items-center space-x-4">
+                          {selectedTechStack === 'Generic' && (
+                            <select
+                              value={language}
+                              onChange={(e) => handleLanguageChange(e.target.value)}
+                              className="px-3 py-1 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg text-sm"
+                            >
+                              <option value="javascript">JavaScript</option>
+                              <option value="python">Python</option>
+                              <option value="java">Java</option>
+                              <option value="cpp">C++</option>
+                              <option value="go">Go</option>
+                            </select>
+                          )}
+                          <button
+                            onClick={() => handleRunCode(code)}
+                            className="inline-flex items-center space-x-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-sm font-medium"
+                          >
+                            <Play className="h-4 w-4" />
+                            <span>Run Tests</span>
+                          </button>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={handleSubmitSolution}
+                            className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-medium"
+                          >
+                            <Save className="h-4 w-4" />
+                            <span>Submit</span>
+                          </button>
+                          <button
+                            onClick={handleEndTest}
+                            className="inline-flex items-center space-x-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors text-sm font-medium"
+                          >
+                            <Square className="h-4 w-4" />
+                            <span>End Test</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Test Results */}
+                      {testResults.length > 0 && (
+                        <div className="border-t border-gray-200/50 dark:border-gray-600/50">
+                          <div 
+                            className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-100/50 dark:hover:bg-gray-600/50 transition-colors"
+                            onClick={() => setIsTestResultsCollapsed(!isTestResultsCollapsed)}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <svg 
+                                className={`w-4 h-4 transition-transform ${isTestResultsCollapsed ? 'rotate-0' : 'rotate-90'}`}
+                                fill="none" 
+                                stroke="currentColor" 
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                Test Results ({passedTests}/{totalTests} passed)
+                              </h3>
+                            </div>
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                              passedTests === totalTests 
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                : passedTests > 0
+                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+                                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                            }`}>
+                              {Math.round((passedTests / totalTests) * 100)}%
+                            </span>
+                          </div>
+                          
+                          {!isTestResultsCollapsed && (
+                            <div className="px-3 pb-3 max-h-40 overflow-y-auto">
+                              <div className="space-y-2">
+                                {testResults.map((result, index) => (
+                                  <div
+                                    key={index}
+                                    className={`p-2 rounded border-l-4 text-xs ${
+                                      result.success
+                                        ? 'bg-green-50 dark:bg-green-900/20 border-green-500'
+                                        : 'bg-red-50 dark:bg-red-900/20 border-red-500'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="font-medium text-gray-700 dark:text-gray-300">
+                                        Test Case {index + 1}
+                                      </span>
+                                      <span className={`font-bold ${
+                                        result.success ? 'text-green-600' : 'text-red-600'
+                                      }`}>
+                                        {result.success ? 'PASSED' : 'FAILED'}
+                                      </span>
+                                    </div>
+                                    
+                                    <div className="space-y-1">
+                                      <div>
+                                        <span className="font-medium text-gray-600 dark:text-gray-400">Input:</span>
+                                        <code className="ml-1 px-1 bg-gray-100 dark:bg-gray-700 rounded">
+                                          {typeof result.input === 'object' ? JSON.stringify(result.input) : String(result.input || '')}
+                                        </code>
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-gray-600 dark:text-gray-400">Expected:</span>
+                                        <code className="ml-1 px-1 bg-gray-100 dark:bg-gray-700 rounded">
+                                          {typeof result.expectedOutput === 'object' ? JSON.stringify(result.expectedOutput) : String(result.expectedOutput || '')}
+                                        </code>
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-gray-600 dark:text-gray-400">Output:</span>
+                                        <code className={`ml-1 px-1 rounded ${
+                                          result.success 
+                                            ? 'bg-green-100 dark:bg-green-900/30' 
+                                            : 'bg-red-100 dark:bg-red-900/30'
+                                        }`}>
+                                          {result.output || 'No output'}
+                                        </code>
+                                      </div>
+                                      {result.error && (
+                                        <div>
+                                          <span className="font-medium text-red-600 dark:text-red-400">Error:</span>
+                                          <code className="ml-1 px-1 bg-red-100 dark:bg-red-900/30 rounded text-red-700 dark:text-red-300">
+                                            {result.error}
+                                          </code>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                     </div>
                   </div>
                 </div>
@@ -2194,7 +2944,10 @@ export default function CodingTest() {
               {/* Camera preview */}
               {!isCameraMinimized && (
                 <CameraPreview
+<<<<<<< HEAD
                   ref={cameraPreviewRef}
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                   isVisible={true}
                   onToggle={() => {}}
                   className="w-full h-full"
@@ -2216,6 +2969,7 @@ export default function CodingTest() {
         </div>
 
         {/* Analysis Modal */}
+<<<<<<< HEAD
         <AnimatePresence mode="wait">
           {(() => {
             const shouldShow = showAnalysis && analysisData && testCompleted
@@ -2227,10 +2981,15 @@ export default function CodingTest() {
             })
             return shouldShow
           })() && (
+=======
+        <AnimatePresence>
+          {showAnalysis && analysisData && (
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+<<<<<<< HEAD
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
               style={{ zIndex: 9999 }}
               onClick={() => {
@@ -2245,6 +3004,19 @@ export default function CodingTest() {
                 transition={{ duration: 0.3, ease: "easeOut" }}
                 className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative z-[10000]"
                 style={{ zIndex: 10000 }}
+=======
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={(e) => {
+                // Don't close modal by clicking background after test completion
+                e.stopPropagation()
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex flex-col gap-6">
@@ -2263,25 +3035,41 @@ export default function CodingTest() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                       <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
                         <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+<<<<<<< HEAD
                           {analysisData?.overallScore || 0}
+=======
+                          {analysisData.overallScore || 0}
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                         </div>
                         <div className="text-sm text-gray-600 dark:text-gray-400">Overall Score</div>
                       </div>
                       <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
                         <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+<<<<<<< HEAD
                           {analysisData?.passedTests || 0}/{analysisData?.totalTests || 0}
+=======
+                          {analysisData.passedTests || 0}/{analysisData.totalTests || 0}
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                         </div>
                         <div className="text-sm text-gray-600 dark:text-gray-400">Tests Passed</div>
                       </div>
                       <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl">
                         <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+<<<<<<< HEAD
                           {analysisData?.duration || '0m 0s'}
+=======
+                          {analysisData.duration || '0m 0s'}
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                         </div>
                         <div className="text-sm text-gray-600 dark:text-gray-400">Time Taken</div>
                       </div>
                       <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
                         <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+<<<<<<< HEAD
                           {analysisData?.codeQuality || 0}/100
+=======
+                          {analysisData.codeQuality || 0}/100
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                         </div>
                         <div className="text-sm text-gray-600 dark:text-gray-400">Code Quality</div>
                       </div>
@@ -2368,4 +3156,8 @@ export default function CodingTest() {
       </div>
     </>
   )
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e

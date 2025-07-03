@@ -159,6 +159,7 @@ export const evaluateResponse = async (question: string, response: string, sessi
 
   return evaluationResponse.json();
 };
+<<<<<<< HEAD
 
 export const correctGrammar = async (text: string): Promise<string> => {
   try {
@@ -183,3 +184,5 @@ export const correctGrammar = async (text: string): Promise<string> => {
     return text; // Return original text if there's an error
   }
 };
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e

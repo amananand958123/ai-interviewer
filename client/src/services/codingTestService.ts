@@ -149,6 +149,7 @@ const getFallbackChallenge = (techStack: string, difficulty: string) => {
     'JavaScript': {
       'Easy': {
         id: 1,
+<<<<<<< HEAD
         title: "Two Sum Problem",
         description: "Given an array of integers `nums` and an integer `target`, find two distinct numbers in the array that add up to the target. Return the indices of the two numbers that add up to the target. You may assume that each input would have exactly one solution, and you may not use the same element twice.\n\nExample: nums = [2, 7, 11, 15], target = 9\nReturn [0, 1] because nums[0] + nums[1] == 9.",
         difficulty: "Easy",
@@ -175,6 +176,39 @@ console.log(twoSum([2, 7, 11, 15], 9)); // Should return [0, 1]`,
             input: [3, 3],
             expectedOutput: [0, 1],
             description: "Duplicate numbers at different indices"
+=======
+        title: "Array Sum Calculator",
+        description: "Write a function that takes an array of numbers and returns their sum. Handle edge cases like empty arrays and non-numeric values.",
+        difficulty: "Easy",
+        techStack: "JavaScript",
+        starterCode: `function calculateSum(numbers) {
+  // Your code here
+  return 0;
+}
+
+// Test your function
+console.log(calculateSum([1, 2, 3, 4, 5])); // Should return 15`,
+        testCases: [
+          {
+            input: [1, 2, 3, 4, 5],
+            expectedOutput: 15,
+            description: "Sum of positive numbers"
+          },
+          {
+            input: [],
+            expectedOutput: 0,
+            description: "Empty array should return 0"
+          },
+          {
+            input: [-1, -2, -3],
+            expectedOutput: -6,
+            description: "Sum of negative numbers"
+          },
+          {
+            input: [1.5, 2.5, 3.5],
+            expectedOutput: 7.5,
+            description: "Sum of decimal numbers"
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
           }
         ],
         timeLimit: 30
@@ -257,6 +291,7 @@ function maxDepth(root) {
     'Python': {
       'Easy': {
         id: 4,
+<<<<<<< HEAD
         title: "Two Sum Problem",
         description: "Given a list of integers `nums` and an integer `target`, find two distinct numbers in the list that add up to the target. Return the indices of the two numbers that add up to the target. You may assume that each input would have exactly one solution, and you may not use the same element twice.\n\nExample: nums = [2, 7, 11, 15], target = 9\nReturn [0, 1] because nums[0] + nums[1] == 9.",
         difficulty: "Easy",
@@ -282,6 +317,39 @@ print(two_sum([2, 7, 11, 15], 9))  # Should return [0, 1]`,
             input: [[3, 3], 6],
             expectedOutput: [0, 1],
             description: "Duplicate numbers at different indices"
+=======
+        title: "List Maximum Finder",
+        description: "Write a function that finds the maximum number in a list. Handle empty lists appropriately by returning None.",
+        difficulty: "Easy",
+        techStack: "Python",
+        starterCode: `def find_maximum(numbers):
+    # Your code here
+    pass
+
+# Test your function
+print(find_maximum([1, 5, 3, 9, 2]))  # Should return 9
+print(find_maximum([]))  # Should return None`,
+        testCases: [
+          {
+            input: [1, 5, 3, 9, 2],
+            expectedOutput: 9,
+            description: "Find max in positive numbers"
+          },
+          {
+            input: [-1, -5, -3],
+            expectedOutput: -1,
+            description: "Find max in negative numbers"
+          },
+          {
+            input: [],
+            expectedOutput: null,
+            description: "Empty list should return None"
+          },
+          {
+            input: [42],
+            expectedOutput: 42,
+            description: "Single element list"
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
           }
         ],
         timeLimit: 30
@@ -423,6 +491,7 @@ console.log(solution());`,
 };
 
 export const executeCode = async (code: string, language: string, testCases: any[]) => {
+<<<<<<< HEAD
   console.log(`🤖 Executing ${language} code using Gemini AI`);
   
   try {
@@ -502,4 +571,24 @@ const executeCodeWithBackend = async (code: string, language: string, testCases:
       await new Promise(resolve => setTimeout(resolve, retryDelay));
     }
   }
+=======
+  const response = await fetch(`${API_URL}/code/execute`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+      code,
+      language,
+      testCases,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Code execution failed');
+  }
+
+  return response.json();
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
 };

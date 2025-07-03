@@ -114,6 +114,7 @@ export const useSpeechStore = create<SpeechStore>((set, get) => {
 
   addToTranscript: (text: string, speaker = 'user') => {
     console.log('Adding to transcript:', text, 'from:', speaker)
+<<<<<<< HEAD
     
     // Filter out very short or likely duplicate text
     const cleanText = text.trim()
@@ -137,11 +138,16 @@ export const useSpeechStore = create<SpeechStore>((set, get) => {
         ? `${state.transcript}\n${formattedMessage}` 
         : formattedMessage
       
+=======
+    set((state) => {
+      const newTranscript = state.transcript ? `${state.transcript} ${text}` : text
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       return { transcript: newTranscript }
     })
   },
 
   speak: (text: string) => {
+<<<<<<< HEAD
     const state = get()
     
     // Prevent speaking if already speaking or if text is too short
@@ -150,6 +156,8 @@ export const useSpeechStore = create<SpeechStore>((set, get) => {
       return
     }
 
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     console.log('Attempting to speak:', text)
     
     if (!('speechSynthesis' in window)) {
@@ -158,11 +166,16 @@ export const useSpeechStore = create<SpeechStore>((set, get) => {
     }
 
     // Auto-enable speech synthesis if not already enabled
+<<<<<<< HEAD
     if (!state.speechSynthesisEnabled) {
+=======
+    if (!get().speechSynthesisEnabled) {
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       console.log('Enabling speech synthesis through user interaction')
       get().enableSpeechSynthesis()
     }
 
+<<<<<<< HEAD
     // Cancel any ongoing speech first and wait for cancellation
     window.speechSynthesis.cancel()
     
@@ -189,6 +202,31 @@ export const useSpeechStore = create<SpeechStore>((set, get) => {
           // First priority: Use preferred voice if set and available
           if (currentState.preferredVoice) {
             selectedVoice = voices.find(voice => voice.name === currentState.preferredVoice)
+=======
+    // Cancel any ongoing speech first
+    window.speechSynthesis.cancel()
+    
+    // Wait a bit for cancellation to complete
+    setTimeout(() => {
+      try {
+        const utterance = new SpeechSynthesisUtterance(text)
+        utterance.rate = 0.85
+        utterance.pitch = 1.0
+        utterance.volume = 0.9
+        
+        // Get available voices
+        const voices = window.speechSynthesis.getVoices()
+        console.log('Available voices:', voices.length, voices.map(v => v.name))
+        
+        // Use consistent voice selection logic
+        let selectedVoice = null
+        const state = get()
+        
+        if (voices.length > 0) {
+          // First priority: Use preferred voice if set and available
+          if (state.preferredVoice) {
+            selectedVoice = voices.find(voice => voice.name === state.preferredVoice)
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
             if (selectedVoice) {
               console.log('Using preferred voice:', selectedVoice.name)
             }
@@ -199,6 +237,10 @@ export const useSpeechStore = create<SpeechStore>((set, get) => {
             selectedVoice = voices.find(voice => voice.name.toLowerCase().includes('rishi'))
             if (selectedVoice) {
               console.log('Found and using Rishi voice:', selectedVoice.name)
+<<<<<<< HEAD
+=======
+              // Set as preferred for consistency
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
               set({ preferredVoice: selectedVoice.name })
             }
           }
@@ -217,6 +259,10 @@ export const useSpeechStore = create<SpeechStore>((set, get) => {
               )
               if (selectedVoice) {
                 console.log('Using quality voice:', selectedVoice.name)
+<<<<<<< HEAD
+=======
+                // Set as preferred for consistency
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                 set({ preferredVoice: selectedVoice.name })
                 break
               }
@@ -235,6 +281,7 @@ export const useSpeechStore = create<SpeechStore>((set, get) => {
           if (selectedVoice) {
             utterance.voice = selectedVoice
             console.log('Final voice selection:', selectedVoice.name, '- Language:', selectedVoice.lang)
+<<<<<<< HEAD
           }
         }
         
@@ -246,27 +293,56 @@ export const useSpeechStore = create<SpeechStore>((set, get) => {
           speechStarted = true
           // Add AI message to transcript
           get().addToTranscript(text, 'ai')
+=======
+          } else {
+            console.log('No suitable voice found, using default')
+          }
+        }
+        
+        let hasStarted = false
+        let speechTimeout: NodeJS.Timeout
+        
+        utterance.onstart = () => {
+          console.log('Speech started successfully with voice:', selectedVoice?.name || 'default')
+          hasStarted = true
+          set({ isSpeaking: true })
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
           if (speechTimeout) clearTimeout(speechTimeout)
         }
         
         utterance.onend = () => {
+<<<<<<< HEAD
           console.log('✅ Speech ended normally')
+=======
+          console.log('Speech ended normally')
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
           set({ isSpeaking: false })
           if (speechTimeout) clearTimeout(speechTimeout)
         }
         
         utterance.onerror = (event) => {
+<<<<<<< HEAD
           console.error('❌ Speech error:', event.error)
           set({ isSpeaking: false })
           if (speechTimeout) clearTimeout(speechTimeout)
           
           if (event.error === 'canceled') {
             console.log('Speech was canceled - this is normal behavior')
+=======
+          console.error('Speech error:', event.error)
+          set({ isSpeaking: false })
+          if (speechTimeout) clearTimeout(speechTimeout)
+          
+          // Don't retry for now, just log the error
+          if (event.error === 'canceled') {
+            console.log('Speech was canceled - this is often normal browser behavior')
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
           } else if (event.error === 'network') {
             console.log('Network error during speech - may need user interaction')
           }
         }
         
+<<<<<<< HEAD
         // Start speech synthesis
         console.log('🗣️ Starting speech synthesis')
         window.speechSynthesis.speak(utterance)
@@ -278,12 +354,29 @@ export const useSpeechStore = create<SpeechStore>((set, get) => {
             set({ isSpeaking: false })
           }
         }, 8000) // 8 second timeout
+=======
+        // Simple speak attempt
+        console.log('Starting speech synthesis with consistent voice')
+        window.speechSynthesis.speak(utterance)
+        
+        // Timeout to reset speaking state if it never starts
+        speechTimeout = setTimeout(() => {
+          if (!hasStarted && get().isSpeaking) {
+            console.log('Speech timeout reached - resetting state')
+            set({ isSpeaking: false })
+          }
+        }, 5000) // 5 second timeout for better reliability
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
         
       } catch (error) {
         console.error('Error in speech synthesis:', error)
         set({ isSpeaking: false })
       }
+<<<<<<< HEAD
     }, 200) // Wait 200ms for cancellation
+=======
+    }, 100)
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
   },
 
   stopSpeaking: () => {

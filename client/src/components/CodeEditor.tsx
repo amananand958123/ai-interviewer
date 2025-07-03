@@ -11,7 +11,10 @@ interface CodeEditorProps {
   className?: string
   readOnly?: boolean
   showLanguageSelector?: boolean
+<<<<<<< HEAD
   hideLanguageDisplay?: boolean // New prop to hide language display completely
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
   boilerplateCode?: string // New prop for boilerplate code
 }
 
@@ -49,7 +52,10 @@ export default function CodeEditor({
   className = '',
   readOnly = false,
   showLanguageSelector = false,
+<<<<<<< HEAD
   hideLanguageDisplay = false,
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
   boilerplateCode = ''
 }: CodeEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
@@ -288,7 +294,17 @@ export default function CodeEditor({
               className="text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1"
             >
               <option value="javascript">JavaScript</option>
+<<<<<<< HEAD
               {/* Only show supported languages - currently only JavaScript is implemented in backend */}
+=======
+              <option value="typescript">TypeScript</option>
+              <option value="python">Python</option>
+              <option value="java">Java</option>
+              <option value="cpp">C++</option>
+              <option value="csharp">C#</option>
+              <option value="go">Go</option>
+              <option value="rust">Rust</option>
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
             </select>
           )}
           
@@ -307,12 +323,22 @@ export default function CodeEditor({
           )}
           
           {/* Show language indicator when language selector is disabled */}
+<<<<<<< HEAD
           {!showLanguageSelector && !hideLanguageDisplay && (
             <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold px-2 py-1 bg-blue-50 dark:bg-blue-900/30 rounded">
               {language === 'javascript' ? 'JavaScript' : 
                language === 'python' ? 'Python' :
                language === 'java' ? 'Java' :
                language === 'cpp' ? 'C++' :
+=======
+          {!showLanguageSelector && (
+            <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold px-2 py-1 bg-blue-50 dark:bg-blue-900/30 rounded">
+              {language === 'javascript' ? 'JavaScript' : 
+               language === 'python' ? 'Python' : 
+               language === 'java' ? 'Java' : 
+               language === 'cpp' ? 'C++' : 
+               language === 'go' ? 'Go' :
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                language.charAt(0).toUpperCase() + language.slice(1)}
             </span>
           )}

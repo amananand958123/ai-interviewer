@@ -293,6 +293,7 @@ Generate exactly ${count} questions and return only the JSON array.`
       ...q
     }))
   }
+<<<<<<< HEAD
 
   // Generate dynamic boilerplate code for coding challenges
   async generateBoilerplateCode(
@@ -755,6 +756,8 @@ Return ONLY the JSON response, no additional text or explanation.`
       results: results
     }
   }
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
 }
 
 export const geminiService = new GeminiService()

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { useEffect, useRef, useState, useCallback } from 'react'
+=======
+import { useEffect, useRef, useState } from 'react'
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
 import { useSpeechStore } from '../stores/speechStore'
 import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react'
 
@@ -18,6 +22,7 @@ export default function SpeechRecognition() {
   const recognitionRef = useRef<any>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyzerRef = useRef<AnalyserNode | null>(null)
+<<<<<<< HEAD
   const restartTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastTranscriptRef = useRef<string>('')
   const [recognitionActive, setRecognitionActive] = useState(false)
@@ -43,10 +48,19 @@ export default function SpeechRecognition() {
   useEffect(() => {
     if (!isSupported) return
 
+=======
+  const [blockRecognition, setBlockRecognition] = useState(false) // Flag to completely block recognition
+
+  useEffect(() => {
+    if (!isSupported) return
+
+    // Initialize speech recognition
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
     if (SpeechRecognition) {
       recognitionRef.current = new SpeechRecognition()
       recognitionRef.current.continuous = true
+<<<<<<< HEAD
       recognitionRef.current.interimResults = false // Only final results to reduce noise
       recognitionRef.current.lang = 'en-US'
       recognitionRef.current.maxAlternatives = 1
@@ -98,26 +112,122 @@ export default function SpeechRecognition() {
             lastTranscriptRef.current = transcript
             addToTranscript(transcript, 'user')
           }
+=======
+      recognitionRef.current.interimResults = true
+      recognitionRef.current.lang = 'en-US'
+
+      recognitionRef.current.onresult = (event: any) => {
+        // AGGRESSIVE BLOCKING: Don't process ANY results if AI is speaking or we're blocking
+        if (isSpeaking || blockRecognition) {
+          console.log('🔇 BLOCKING speech recognition result - AI speaking or blocked:', { isSpeaking, blockRecognition })
+          return
+        }
+        
+        let finalTranscript = ''
+        let interimTranscript = ''
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript
+          
+          // Enhanced filter for AI-related phrases that might be picked up
+          const aiPhrases = [
+            'here\'s question',
+            'question number',
+            'follow-up question',
+            'let\'s talk about',
+            'can you walk me through',
+            'i\'m curious about',
+            'so tell me about',
+            'i\'d like to discuss',
+            'question 1',
+            'question 2',
+            'question 3',
+            'question 4',
+            'question 5',
+            'of 5',
+            'of 10',
+            'here is',
+            'this is question',
+            'here\'s',
+            'this is',
+            'question',
+            'let me ask',
+            'i want to',
+            'can you tell'
+          ]
+          
+          const lowerTranscript = transcript.toLowerCase().trim()
+          
+          // Skip very short transcripts that are likely noise
+          if (lowerTranscript.length < 3) {
+            console.log('🚫 Filtered out very short transcript:', transcript)
+            return
+          }
+          
+          // Filter out AI-related content with more aggressive matching
+          const isLikelyAIFeedback = aiPhrases.some(phrase => 
+            lowerTranscript.includes(phrase) || 
+            lowerTranscript.startsWith(phrase)
+          )
+          
+          if (isLikelyAIFeedback) {
+            console.log('🚫 AGGRESSIVELY filtered out likely AI feedback:', transcript)
+            return
+          }
+          
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' '
+          } else {
+            interimTranscript += transcript
+          }
+        }
+        
+        if (finalTranscript.trim()) {
+          console.log('🎤 Adding user transcript:', finalTranscript.trim())
+          addToTranscript(finalTranscript.trim(), 'user')
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
         }
       }
 
       recognitionRef.current.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error)
+<<<<<<< HEAD
         setRecognitionActive(false)
         
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           console.error('Microphone permission denied')
           return
         }
+<<<<<<< HEAD
         
         // Don't auto-restart on errors to prevent loops
         if (event.error !== 'aborted' && event.error !== 'no-speech') {
           console.log('Speech recognition error, will not auto-restart:', event.error)
+=======
+        if (event.error === 'no-speech') {
+          console.log('No speech detected, will retry automatically')
+          return
+        }
+        // Only auto-restart on network errors or other recoverable issues
+        if (isListening && (event.error === 'network' || event.error === 'audio-capture')) {
+          setTimeout(() => {
+            if (recognitionRef.current && isListening) {
+              try {
+                recognitionRef.current.start()
+              } catch (error) {
+                console.error('Error restarting recognition:', error)
+              }
+            }
+          }, 1000)
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
         }
       }
 
       recognitionRef.current.onend = () => {
         console.log('Speech recognition ended')
+<<<<<<< HEAD
         setRecognitionActive(false)
         
         // Only restart if we should be listening, AI is not speaking, and no pending restart
@@ -135,10 +245,29 @@ export default function SpeechRecognition() {
             }
             restartTimeoutRef.current = null
           }, 1000) // 1 second delay between restarts
+=======
+        // Only auto-restart if still supposed to be listening AND not blocked
+        if (isListening && !blockRecognition && !isSpeaking) {
+          setTimeout(() => {
+            try {
+              if (recognitionRef.current && isListening && !blockRecognition && !isSpeaking) {
+                console.log('Restarting speech recognition')
+                recognitionRef.current.start()
+              }
+            } catch (error) {
+              if (error instanceof Error && error.message.includes('already started')) {
+                console.log('Recognition already running, skipping restart')
+              } else {
+                console.error('Error restarting recognition:', error)
+              }
+            }
+          }, 300)
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
         }
       }
 
       recognitionRef.current.onstart = () => {
+<<<<<<< HEAD
         console.log('🎤 Speech recognition started')
         setRecognitionActive(true)
       }
@@ -178,12 +307,137 @@ export default function SpeechRecognition() {
       audioContextRef.current = new AudioContext()
       analyzerRef.current = audioContextRef.current.createAnalyser()
       analyzerRef.current.fftSize = 256
+=======
+        console.log('Speech recognition started')
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort()
+      }
+    }
+  }, [isSupported, addToTranscript, isSpeaking, blockRecognition])
+
+  // Effect to control blocking flag based on AI speaking state
+  useEffect(() => {
+    if (isSpeaking) {
+      console.log('🛑 AI is speaking - BLOCKING recognition for extra safety')
+      setBlockRecognition(true)
+      
+      // Also force abort when AI starts speaking
+      if (recognitionRef.current) {
+        try {
+          console.log('🚨 Force aborting recognition because AI started speaking')
+          recognitionRef.current.abort()
+          stopAudioLevelMonitoring()
+        } catch (error) {
+          console.error('Error aborting recognition:', error)
+        }
+      }
+    } else {
+      // Wait a bit after AI stops speaking before unblocking
+      const timeout = setTimeout(() => {
+        console.log('✅ AI stopped speaking - UNBLOCKING recognition')
+        setBlockRecognition(false)
+      }, 3000) // 3 second safety buffer
+      
+      return () => clearTimeout(timeout)
+    }
+  }, [isSpeaking])
+
+  useEffect(() => {
+    if (isListening && recognitionRef.current && !blockRecognition && !isSpeaking) {
+      try {
+        // Check if recognition is already running
+        if (recognitionRef.current.continuous !== undefined) {
+          try {
+            recognitionRef.current.stop()
+          } catch (e) {
+            // Ignore errors when stopping
+          }
+        }
+        
+        // Wait a moment then start fresh
+        setTimeout(() => {
+          try {
+            if (recognitionRef.current && isListening && !blockRecognition && !isSpeaking) {
+              console.log('Starting speech recognition (not blocked)')
+              recognitionRef.current.start()
+              startAudioLevelMonitoring()
+            }
+          } catch (error) {
+            console.error('Error starting speech recognition:', error)
+          }
+        }, 100)
+      } catch (error) {
+        console.error('Error with speech recognition setup:', error)
+      }
+    } else if (!isListening && recognitionRef.current) {
+      try {
+        console.log('Stopping speech recognition')
+        recognitionRef.current.stop()
+        stopAudioLevelMonitoring()
+      } catch (error) {
+        console.error('Error stopping speech recognition:', error)
+      }
+    } else if (blockRecognition || isSpeaking) {
+      // Force stop if we're blocked or AI is speaking
+      try {
+        if (recognitionRef.current) {
+          console.log('Force stopping speech recognition - blocked or AI speaking')
+          recognitionRef.current.stop()
+          stopAudioLevelMonitoring()
+        }
+      } catch (error) {
+        console.error('Error force stopping speech recognition:', error)
+      }
+    }
+  }, [isListening, blockRecognition, isSpeaking])
+
+  // Stop recognition when AI is speaking to prevent feedback
+  useEffect(() => {
+    if (isSpeaking && recognitionRef.current) {
+      console.log('🔇 Stopping speech recognition while AI is speaking')
+      try {
+        recognitionRef.current.stop()
+        stopAudioLevelMonitoring()
+      } catch (error) {
+        console.warn('Error stopping recognition while AI speaks:', error)
+      }
+    } else if (!isSpeaking && isListening && recognitionRef.current) {
+      // Restart recognition after AI finishes speaking
+      console.log('🎤 Restarting speech recognition after AI finished speaking')
+      setTimeout(() => {
+        try {
+          if (recognitionRef.current && isListening && !isSpeaking) {
+            recognitionRef.current.start()
+            startAudioLevelMonitoring()
+          }
+        } catch (error) {
+          if (error instanceof Error && error.message.includes('already started')) {
+            console.log('Recognition already running, skipping restart')
+          } else {
+            console.warn('Error restarting recognition after AI speech:', error)
+          }
+        }
+      }, 1000) // Wait 1 second after AI stops speaking to avoid audio feedback
+    }
+  }, [isSpeaking, isListening])
+
+  const startAudioLevelMonitoring = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      audioContextRef.current = new AudioContext()
+      analyzerRef.current = audioContextRef.current.createAnalyser()
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       const source = audioContextRef.current.createMediaStreamSource(stream)
       source.connect(analyzerRef.current)
 
       const dataArray = new Uint8Array(analyzerRef.current.frequencyBinCount)
       
       const updateAudioLevel = () => {
+<<<<<<< HEAD
         if (analyzerRef.current && isListening && !isSpeaking) {
           analyzerRef.current.getByteFrequencyData(dataArray)
           const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
@@ -191,6 +445,13 @@ export default function SpeechRecognition() {
           requestAnimationFrame(updateAudioLevel)
         } else {
           setAudioLevel(0)
+=======
+        if (analyzerRef.current && isListening) {
+          analyzerRef.current.getByteFrequencyData(dataArray)
+          const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
+          setAudioLevel(average / 255) // Normalize to 0-1
+          requestAnimationFrame(updateAudioLevel)
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
         }
       }
       

@@ -9,8 +9,11 @@ import { useInterviewStore } from '../stores/interviewStore'
 import { useSpeechStore } from '../stores/speechStore'
 import * as interviewService from '../services/interviewService'
 
+<<<<<<< HEAD
 const API_URL = 'http://localhost:3001/api'
 
+=======
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
 interface Question {
   id: number
   text: string
@@ -23,7 +26,11 @@ interface Question {
 export default function TechnicalInterview() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+<<<<<<< HEAD
   const selectedTechStack = searchParams.get('techStack') || 'Generic'
+=======
+  const selectedTechStack = searchParams.get('techStack') || 'JavaScript'
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
   const selectedLevel = searchParams.get('level') || 'Basic'
   
   const [questions, setQuestions] = useState<Question[]>([])
@@ -54,7 +61,11 @@ export default function TechnicalInterview() {
   const [interviewReady, setInterviewReady] = useState(false)
   
   const { saveResponse } = useInterviewStore()
+<<<<<<< HEAD
   const { transcript, clearTranscript, speak, stopSpeaking, isSpeaking, startListening } = useSpeechStore()
+=======
+  const { transcript, clearTranscript, speak, stopSpeaking, isSpeaking, startListening, abortListening } = useSpeechStore()
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
   
   // Camera reference for proper cleanup
   const cameraRef = useRef<any>(null)
@@ -276,6 +287,7 @@ export default function TechnicalInterview() {
       // Stop any ongoing speech
       stopSpeaking()
       setIsQuestionSpeaking(false)
+<<<<<<< HEAD
       // Clear session when leaving the interview page - but DON'T end the session
       // Sessions should only end when explicitly clicking "End Interview"
       localStorage.removeItem('interview-session-id')
@@ -283,6 +295,23 @@ export default function TechnicalInterview() {
       // Don't automatically end session on navigation - only on explicit user action
       // This allows users to navigate to dashboard without ending their interview
       console.log('🧹 Component cleanup - stopping speech but preserving session')
+=======
+      // Clear session when leaving the interview page
+      localStorage.removeItem('interview-session-id')
+      
+      // End session if it exists - use current sessionId from closure
+      const currentSessionId = sessionId
+      if (currentSessionId) {
+        const cleanup = async () => {
+          try {
+            await interviewService.endSession(currentSessionId, 0) // End with 0 score if user leaves abruptly
+          } catch (error) {
+            console.warn('Failed to end session on cleanup:', error)
+          }
+        }
+        cleanup()
+      }
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     }
   }, [stopSpeaking]) // Remove sessionId from dependencies to prevent cleanup on session change
 
@@ -509,6 +538,7 @@ export default function TechnicalInterview() {
   useEffect(() => {
     // Only speak if countdown is completed, interview is ready, and question hasn't been spoken yet
     if (currentQuestion && !isSpeaking && interviewReady && !showCountdown && !questionHasBeenSpoken) {
+<<<<<<< HEAD
       // ULTRA AGGRESSIVE STOP: Multiple methods to ensure speech recognition is completely disabled
       console.log('🛑 ULTRA AGGRESSIVE speech recognition shutdown before AI speaks')
       const { stopListening, abortListening: abort, isListening } = useSpeechStore.getState()
@@ -593,6 +623,44 @@ export default function TechnicalInterview() {
           }, 300)
         }, 300)
       }, 500)
+=======
+      // AGGRESSIVE STOP: Use abortListening for more forceful stopping
+      console.log('🛑 FORCE ABORTING speech recognition before AI speaks')
+      abortListening()
+      clearTranscript()
+      
+      // Mark question as speaking immediately to prevent any other triggers
+      setIsQuestionSpeaking(true)
+      setQuestionHasBeenSpoken(true)
+      
+      // Optimized delay sequence for faster AI response
+      setTimeout(() => {
+        // Clear transcript multiple times
+        clearTranscript()
+        console.log('🧹 First transcript clear')
+        
+        setTimeout(() => {
+          clearTranscript()
+          console.log('🧹 Final transcript clear - AI about to speak')
+          
+          // Ensure voice consistency by loading voices first
+          const { loadVoices, voicesLoaded } = useSpeechStore.getState()
+          if (!voicesLoaded) {
+            loadVoices()
+          }
+          
+          // Create a more natural introduction to the question
+          const questionIntro = `Here's question ${currentQuestionIndex + 1} of ${questions.length}.`
+          const questionText = `${questionIntro} ${currentQuestion.text}`
+          
+          // Minimal final delay for smooth transition
+          setTimeout(() => {
+            console.log('🎤 AI NOW SPEAKING:', questionIntro)
+            speak(questionText)
+          }, 200) // Reduced from 400ms to 200ms
+        }, 250) // Reduced from 300ms to 250ms
+      }, 500) // Reduced from 1000ms to 500ms for faster AI response
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     }
   }, [currentQuestionIndex, currentQuestion, speak, clearTranscript, questions.length, isSpeaking, interviewReady, showCountdown, questionHasBeenSpoken])
 
@@ -606,14 +674,22 @@ export default function TechnicalInterview() {
     if (!isSpeaking && isQuestionSpeaking) {
       setIsQuestionSpeaking(false)
       
+<<<<<<< HEAD
       // Aggressive cleanup after AI finishes speaking
       console.log('🔊 AI finished speaking, preparing for user response...')
       
       // Multiple transcript clears to ensure no AI speech remnants remain
+=======
+      // Quick cleanup and restart - much shorter delays
+      console.log('🔊 AI finished speaking, preparing for user response...')
+      
+      // Clear transcript once
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
       clearTranscript()
       
       setTimeout(() => {
         clearTranscript() // Second clear for safety
+<<<<<<< HEAD
         console.log('🧹 First post-AI transcript clear')
         
         setTimeout(() => {
@@ -635,6 +711,21 @@ export default function TechnicalInterview() {
           }, 200)
         }, 300)
       }, 400)
+=======
+        console.log('🧹 Clearing transcript after AI speech')
+        
+        setTimeout(() => {
+          // Check if speech recognition is ready before starting
+          const { isListening } = useSpeechStore.getState()
+          if (!isListening) {
+            console.log('✅ Starting to listen for user response after AI finished speaking')
+            startListening()
+          } else {
+            console.log('🔄 Speech recognition already listening')
+          }
+        }, 200) // Optimized to 200ms for faster response
+      }, 600) // Optimized to 600ms for faster transition
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     }
   }, [isSpeaking, isQuestionSpeaking, startListening, clearTranscript])
 
@@ -674,7 +765,11 @@ export default function TechnicalInterview() {
       console.log('Could not enumerate/stop devices:', e)
     }
     
+<<<<<<< HEAD
     // Get actual responses and evaluations from the interview store
+=======
+    // Get actual responses from the interview store
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     const { currentSession } = useInterviewStore.getState()
     const responses = currentSession?.responses || {}
     
@@ -686,7 +781,11 @@ export default function TechnicalInterview() {
       currentQuestionIndex
     })
     
+<<<<<<< HEAD
     // Calculate actual performance metrics FIRST
+=======
+    // Calculate actual performance metrics
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     const questionsAnswered = Object.keys(responses).filter(key => {
       const response = responses[key]
       return response && response.trim().length > 0
@@ -704,6 +803,7 @@ export default function TechnicalInterview() {
       totalQuestions: questions.length
     })
     
+<<<<<<< HEAD
     // Try to get stored evaluation data from the backend session - IMPROVED VERSION
     let backendAnalysis = null
     if (sessionId) {
@@ -831,6 +931,13 @@ export default function TechnicalInterview() {
       let communicationScore = 0
       let completenessScore = completionRate
       let problemSolvingScore = 0
+=======
+    // Calculate realistic scores based on actual responses
+    let technicalScore = 0
+    let communicationScore = 0
+    let completenessScore = completionRate
+    let problemSolvingScore = 0
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     
     if (hasAnyResponses) {
       // Analyze response quality - filter out empty responses
@@ -921,6 +1028,7 @@ export default function TechnicalInterview() {
         "Expand on implementation details",
         "Practice with more complex scenarios"
       ]
+<<<<<<< HEAD
       }
       
       realAnalysis = {
@@ -940,12 +1048,36 @@ export default function TechnicalInterview() {
         hasResponses: hasAnyResponses,
         isAIAnalyzed: false
       }
+=======
+      overallFeedback = `Good performance! You answered ${questionsAnswered} of ${questions.length} questions with solid responses. Your communication was clear and you demonstrated good knowledge of ${selectedTechStack}.`
+    }
+    
+    const realAnalysis = {
+      score: overallScore,
+      technicalAccuracy: technicalScore,
+      communicationClarity: communicationScore,
+      completeness: completenessScore,
+      problemSolving: problemSolvingScore,
+      strengths: strengths,
+      improvements: improvements,
+      overallFeedback: overallFeedback,
+      questionsAnswered: questionsAnswered,
+      totalQuestions: questions.length,
+      duration: questionsAttempted <= 2 ? '2-5 minutes' : questionsAttempted <= 4 ? '8-12 minutes' : '15-20 minutes',
+      techStack: selectedTechStack,
+      completionRate: completionRate,
+      hasResponses: hasAnyResponses
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     }
     
     setAnalysisData(realAnalysis)
     
     // End the session with the calculated overall score
+<<<<<<< HEAD
     await endSession(realAnalysis.score)
+=======
+    await endSession(overallScore)
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
     
     setShowAnalysis(true)
   }
@@ -1660,6 +1792,7 @@ export default function TechnicalInterview() {
                 Live Transcript
               </h3>
               <div className="min-h-[300px] bg-gradient-to-br from-gray-50/90 to-white/90 dark:from-gray-700/90 dark:to-gray-800/90 rounded-3xl p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 shadow-inner">
+<<<<<<< HEAD
                 {isQuestionSpeaking ? (
                   // Show AI speaking indicator instead of transcript to prevent confusion
                   <div className="flex items-center justify-center h-full text-blue-600 dark:text-blue-400">
@@ -1684,6 +1817,9 @@ export default function TechnicalInterview() {
                     </div>
                   </div>
                 ) : transcript ? (
+=======
+                {transcript ? (
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                   <motion.p 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -1708,7 +1844,11 @@ export default function TechnicalInterview() {
                       >
                         <Mic className="h-16 w-16 mx-auto mb-4 text-purple-500" />
                       </motion.div>
+<<<<<<< HEAD
                       <p className="text-lg font-medium">👤 Start speaking to see your transcript here...</p>
+=======
+                      <p className="text-lg font-medium">Start speaking to see your transcript here...</p>
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                       <p className="text-sm mt-2 opacity-75">Your voice will be captured in real-time</p>
                     </div>
                   </div>
@@ -2024,6 +2164,7 @@ export default function TechnicalInterview() {
 
               {/* Footer - Elegant Dark Theme */}
               <div className="flex-shrink-0 bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 p-8 border-t border-slate-600 dark:border-slate-700">
+<<<<<<< HEAD
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <motion.button
                     whileHover={{ scale: 1.02 }}
@@ -2046,6 +2187,37 @@ export default function TechnicalInterview() {
                   >
                     <RefreshCw className="h-5 w-5" />
                     Take Another Interview
+=======
+                <div className="flex flex-col sm:flex-row gap-4 justify-between">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => handleEndInterviewAndExit('/dashboard')}
+                      className="px-8 py-4 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white rounded-2xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl border border-teal-400 flex items-center gap-3"
+                    >
+                      <Target className="h-5 w-5" />
+                      View Dashboard
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => window.location.reload()}
+                      className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl border border-emerald-400 flex items-center gap-3"
+                    >
+                      <RefreshCw className="h-5 w-5" />
+                      Take Another Interview
+                    </motion.button>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleEndInterviewAndExit('/')}
+                    className="px-8 py-4 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white rounded-2xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl border border-slate-500 flex items-center gap-3"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                    Back to Home
+>>>>>>> c538edd751c2e8f7c7773b287e3f6c83f630f35e
                   </motion.button>
                 </div>
               </div>
